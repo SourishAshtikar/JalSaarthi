@@ -79,9 +79,14 @@ const login = async ({ email, password }) => {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Find user by email
+  // Find user by email with village/district names joined
   const result = await query(
-    'SELECT id, name, email, password_hash, role, district_id, village_id, created_at FROM users WHERE email = $1',
+    `SELECT u.id, u.name, u.email, u.password_hash, u.role, u.district_id, u.village_id, u.created_at,
+            v.name AS village_name, d.name AS district_name
+     FROM users u
+     LEFT JOIN villages v ON u.village_id = v.village_id
+     LEFT JOIN districts d ON u.district_id = d.district_id
+     WHERE u.email = $1`,
     [normalizedEmail]
   );
 
@@ -127,6 +132,8 @@ const login = async ({ email, password }) => {
       role: user.role,
       district_id: user.district_id,
       village_id: user.village_id,
+      village_name: user.village_name,
+      district_name: user.district_name,
       created_at: user.created_at
     }
   };
@@ -134,7 +141,12 @@ const login = async ({ email, password }) => {
 
 const getUserById = async (userId) => {
   const result = await query(
-    'SELECT id, name, email, role, district_id, village_id, created_at FROM users WHERE id = $1',
+    `SELECT u.id, u.name, u.email, u.role, u.district_id, u.village_id, u.created_at,
+            v.name AS village_name, d.name AS district_name
+     FROM users u
+     LEFT JOIN villages v ON u.village_id = v.village_id
+     LEFT JOIN districts d ON u.district_id = d.district_id
+     WHERE u.id = $1`,
     [userId]
   );
 

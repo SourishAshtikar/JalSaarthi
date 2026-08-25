@@ -22,9 +22,17 @@ function startMLService() {
       tester.close(() => {
         console.log('🤖 Auto-starting Python ML FastAPI microservice on port 8000...');
         mlProcess = spawn('python', ['-m', 'uvicorn', 'Model.api_intergate:app', '--host', '127.0.0.1', '--port', '8000'], {
-          stdio: 'ignore',
           shell: true
         });
+        
+        mlProcess.stdout.on('data', (data) => {
+          console.log(`[ML-stdout] ${data.toString().trim()}`);
+        });
+
+        mlProcess.stderr.on('data', (data) => {
+          console.error(`[ML-stderr] ${data.toString().trim()}`);
+        });
+
         mlProcess.on('error', (err) => {
           console.error('⚠️ Could not start Python ML microservice automatically:', err.message);
         });
@@ -57,13 +65,43 @@ const startServer = async () => {
   }
 };
 
+const { exec } = require('child_process');
+
+function killMLProcess() {
+  if (mlProcess) {
+    console.log('Stopping Python ML microservice...');
+    try {
+      if (process.platform === 'win32') {
+        // Kill the process tree (including shell and child python processes)
+        exec(`taskkill /F /T /PID ${mlProcess.pid}`, () => {});
+      } else {
+        mlProcess.kill('SIGTERM');
+      }
+    } catch (e) {
+      console.error('Error killing Python ML microservice:', e.message);
+    }
+  }
+}
+
+// Guarantee cleanup on all exit paths
 process.on('SIGINT', () => {
-  if (mlProcess) mlProcess.kill();
+  killMLProcess();
   process.exit(0);
 });
+
 process.on('SIGTERM', () => {
-  if (mlProcess) mlProcess.kill();
+  killMLProcess();
   process.exit(0);
+});
+
+process.on('exit', () => {
+  killMLProcess();
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception in server:', err);
+  killMLProcess();
+  process.exit(1);
 });
 
 startServer();

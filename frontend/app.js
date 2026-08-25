@@ -139,9 +139,9 @@ async function checkSessionAndRoute() {
     
     let geoText = '';
     if (currentUser.role === 'VILLAGE_HEAD') {
-      geoText = currentUser.village_id ? `Assigned Village ID: ${currentUser.village_id}` : 'No Assigned Village';
+      geoText = currentUser.village_name ? `Assigned Village: ${currentUser.village_name}` : 'No Assigned Village';
     } else if (currentUser.role === 'AUDITOR') {
-      geoText = currentUser.district_id ? `Assigned District ID: ${currentUser.district_id}` : 'No Assigned District';
+      geoText = currentUser.district_name ? `Assigned District: ${currentUser.district_name}` : 'No Assigned District';
     } else {
       geoText = 'Platform Scope: Global';
     }
@@ -988,12 +988,14 @@ async function loadVillageFarms() {
     const farms = res.data.data.farms;
     if (farms.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center">No farms registered in this village yet.</td></tr>';
-      document.getElementById('vh-village-name').textContent = 'Assigned Village (0 Farms)';
+      document.getElementById('vh-village-name').textContent = currentUser.village_name 
+        ? `${currentUser.village_name} (ID: ${currentUser.village_id}) (0 Farms)` 
+        : 'Assigned Village (0 Farms)';
       return;
     }
 
     if (farms[0].village_name) {
-      document.getElementById('vh-village-name').textContent = `${farms[0].village_name} (ID: ${farms[0].village_id})`;
+      document.getElementById('vh-village-name').textContent = `${farms[0].village_name} (ID: ${farms[0].village_id}) (${farms.length} Farms)`;
       selectedFarmVillageId = farms[0].village_id;
     }
 
