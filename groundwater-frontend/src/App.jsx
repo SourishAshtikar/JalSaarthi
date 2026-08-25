@@ -9,7 +9,24 @@ const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 const TOKEN = 'groundwater_jwt'
 const today = new Date().toISOString().slice(0, 10)
 
-function ApiError({ message }) { return message ? <p className="error">{message}</p> : null }
+function ApiError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div className="error">
+      <span>{message}</span>
+      {onDismiss && (
+        <button
+          type="button"
+          className="icon-button error-dismiss"
+          onClick={onDismiss}
+          aria-label="Dismiss error"
+        >
+          <X />
+        </button>
+      )}
+    </div>
+  )
+}
 
 function Modal({ title, onClose, children }) {
   return <div className="modal-backdrop" onMouseDown={onClose}><section className="modal" onMouseDown={e => e.stopPropagation()}><header><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header>{children}</section></div>
@@ -107,7 +124,10 @@ function Shell({ user, onLogout, notify, request, error, setError, toast }) {
               key={tab.id}
               type="button"
               className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setError('')
+                setActiveTab(tab.id)
+              }}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -140,7 +160,7 @@ function Shell({ user, onLogout, notify, request, error, setError, toast }) {
           <div className="profile"><BadgeCheck /> {roleLabel}</div>
         </header>
 
-        <ApiError message={error} />
+        <ApiError message={error} onDismiss={() => setError('')} />
 
         {user.role === 'ADMIN' ? (
           activeTab === 'schemes' ? (
@@ -252,6 +272,7 @@ function VillageHeadContent({ request, notify, setError, user }) {
   const [modal, setModal] = useState(null)
 
   const load = async () => {
+    setError('')
     try {
       const [farmR, auditR, schemeR, seasonR, cropR, methodR] = await Promise.all([
         request('/api/farms'),
@@ -619,11 +640,130 @@ function PredictionTest({ request, setError }) {
   )
 }
 
+const DEFAULT_RECOMMENDATION_OPTIONS = {
+  crops: [
+    { id: 1, name: 'Paddy / Rice' },
+    { id: 2, name: 'Wheat' },
+    { id: 3, name: 'Cotton' },
+    { id: 4, name: 'Sugarcane' },
+    { id: 5, name: 'Mustard' },
+    { id: 6, name: 'Bajra' },
+    { id: 7, name: 'Potato / Tomato' }
+  ],
+  irrigationPractices: [
+    { id: 'Flood', name: 'Flood Irrigation' },
+    { id: 'Drip', name: 'Drip Irrigation' },
+    { id: 'Sprinkler', name: 'Sprinkler Irrigation' },
+    { id: 'AWD', name: 'Alternate Wetting & Drying (AWD)' },
+    { id: 'Furrow', name: 'Furrow Irrigation' }
+  ]
+}
+
 function SearchableRecommendationPanel({ request, setError, villageId, villageName }) {
-  const [reference, setReference] = useState({ crops: [], irrigationPractices: [] }); const [cropName, setCropName] = useState('Paddy / Rice'); const [currentPractice, setCurrentPractice] = useState('Flood'); const [report, setReport] = useState(null); const [busy, setBusy] = useState(false)
-  useEffect(() => { request('/api/reference/recommendation-options').then(result => setReference(result.data)).catch(err => setError(err.message)) }, [request, setError])
-  async function generate(event) { event.preventDefault(); setBusy(true); setError(''); try { const result = await request('/api/recommendations', { method: 'POST', body: JSON.stringify({ villageId, cropName, currentPractice }) }); setReport(result.data) } catch (err) { setError(err.message) } finally { setBusy(false) } }
-  return <article className="panel recommendation-panel"><header><div><Sparkles /><h2>Crop irrigation recommendation</h2></div></header><p className="muted">Village: <strong>{villageName || `ID ${villageId}`}</strong></p><form className="compact-form" onSubmit={generate}><label>Crop — searchable<input list="recommendation-crops" value={cropName} onChange={event => setCropName(event.target.value)} required /><datalist id="recommendation-crops">{reference.crops.map(crop => <option key={crop.id} value={crop.name} />)}</datalist></label><label>Current practice — searchable<input list="recommendation-practices" value={currentPractice} onChange={event => setCurrentPractice(event.target.value)} required /><datalist id="recommendation-practices">{reference.irrigationPractices.map(practice => <option key={practice.id} value={practice.id}>{practice.name}</option>)}</datalist></label><button className="button primary" disabled={busy || !villageId}>{busy ? 'Generating…' : 'Generate recommendation'}</button></form>{report && <div className="recommendation-result"><div className="recommendation-title"><span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span><strong>{report.recommendedPractice?.name || report.recommendedPractice?.id}</strong></div><p>{report.reasons?.[0] || 'No reason was returned.'}</p><dl className="result-stats"><div><dt>Water saving</dt><dd>{report.waterSavingsPercentage ?? '—'}%</dd></div><div><dt>Confidence</dt><dd>{report.confidenceScore ?? '—'}%</dd></div><div><dt>Groundwater</dt><dd>{report.diagnostics?.groundwaterLevelMeters ?? '—'} m</dd></div></dl></div>}</article>
+  const [reference, setReference] = useState(DEFAULT_RECOMMENDATION_OPTIONS)
+  const [cropName, setCropName] = useState('Paddy / Rice')
+  const [currentPractice, setCurrentPractice] = useState('Flood')
+  const [report, setReport] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    request('/api/reference/recommendation-options')
+      .then(result => {
+        if (result?.data?.crops?.length) {
+          setReference(result.data)
+        }
+      })
+      .catch(() => {
+        // Silently keep default options without polluting top-level error state
+      })
+  }, [request])
+
+  async function generate(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const result = await request('/api/recommendations', {
+        method: 'POST',
+        body: JSON.stringify({ villageId, cropName, currentPractice })
+      })
+      setReport(result.data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <article className="panel recommendation-panel">
+      <header>
+        <div>
+          <Sparkles />
+          <h2>Crop irrigation recommendation</h2>
+        </div>
+      </header>
+      <p className="muted">Village: <strong>{villageName || `ID ${villageId}`}</strong></p>
+      <form className="compact-form" onSubmit={generate}>
+        <label>
+          Crop — searchable
+          <input
+            list="recommendation-crops"
+            value={cropName}
+            onChange={event => setCropName(event.target.value)}
+            required
+          />
+          <datalist id="recommendation-crops">
+            {(reference.crops || []).map(crop => (
+              <option key={crop.id || crop.name} value={crop.name} />
+            ))}
+          </datalist>
+        </label>
+        <label>
+          Current practice — searchable
+          <input
+            list="recommendation-practices"
+            value={currentPractice}
+            onChange={event => setCurrentPractice(event.target.value)}
+            required
+          />
+          <datalist id="recommendation-practices">
+            {(reference.irrigationPractices || []).map(practice => (
+              <option key={practice.id || practice.name} value={practice.id || practice.name}>
+                {practice.name || practice.id}
+              </option>
+            ))}
+          </datalist>
+        </label>
+        <button className="button primary" disabled={busy || !villageId}>
+          {busy ? 'Generating…' : 'Generate recommendation'}
+        </button>
+      </form>
+      {report && (
+        <div className="recommendation-result">
+          <div className="recommendation-title">
+            <span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span>
+            <strong>{report.recommendedPractice?.name || report.recommendedPractice?.id}</strong>
+          </div>
+          <p>{report.reasons?.[0] || 'No reason was returned.'}</p>
+          <dl className="result-stats">
+            <div>
+              <dt>Water saving</dt>
+              <dd>{report.waterSavingsPercentage ?? '—'}%</dd>
+            </div>
+            <div>
+              <dt>Confidence</dt>
+              <dd>{report.confidenceScore ?? '—'}%</dd>
+            </div>
+            <div>
+              <dt>Groundwater</dt>
+              <dd>{report.diagnostics?.groundwaterLevelMeters ?? '—'} m</dd>
+            </div>
+          </dl>
+        </div>
+      )}
+    </article>
+  )
 }
 
 function RecommendationPanel({ request, setError, villageId, villageName }) {

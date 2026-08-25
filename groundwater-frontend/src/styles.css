@@ -290,8 +290,33 @@ textarea {
   background: var(--red-pale);
   color: #812d20;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.error-dismiss {
+  color: #812d20;
+  padding: 2px;
+  opacity: 0.75;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.error-dismiss:hover {
+  opacity: 1;
+}
+
+.error-dismiss svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* ==================== App Shell & Sidebar ==================== */
