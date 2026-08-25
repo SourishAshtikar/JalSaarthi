@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { BadgeCheck, Bot, Building2, Droplets, Leaf, LogOut, Map, MapPin, Plus, ShieldCheck, Sparkles, Sprout, Waves, X } from 'lucide-react'
 
 // Code-split heavy Leaflet GIS map component on demand
@@ -8,6 +8,42 @@ const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 const TOKEN = 'groundwater_jwt'
 const USER_KEY = 'groundwater_user'
 const today = new Date().toISOString().slice(0, 10)
+
+const DEFAULT_RECOMMENDATION_OPTIONS = {
+  crops: [
+    { id: 1, name: 'Paddy / Rice (धान / जीरी)', season: 'Kharif', waterRequirementClass: 'Very High' },
+    { id: 2, name: 'Cotton (कपास)', season: 'Kharif', waterRequirementClass: 'High' },
+    { id: 3, name: 'Bajra / Pearl Millet (बाजरा)', season: 'Kharif', waterRequirementClass: 'Low-Medium' },
+    { id: 4, name: 'Maize (मक्का)', season: 'Kharif', waterRequirementClass: 'Medium' },
+    { id: 5, name: 'Guar / Cluster Bean (गवार)', season: 'Kharif', waterRequirementClass: 'Low-Medium' },
+    { id: 6, name: 'Sugarcane (गन्ना)', season: 'Kharif', waterRequirementClass: 'Very High' },
+    { id: 7, name: 'Wheat (गेहूं)', season: 'Rabi', waterRequirementClass: 'High' },
+    { id: 8, name: 'Mustard (सरसों)', season: 'Rabi', waterRequirementClass: 'Low-Medium' },
+    { id: 9, name: 'Barley (जौ)', season: 'Rabi', waterRequirementClass: 'Medium' },
+    { id: 10, name: 'Gram / Chickpea (चना)', season: 'Rabi', waterRequirementClass: 'Low-Medium' },
+    { id: 11, name: 'Potato (आलू)', season: 'Rabi', waterRequirementClass: 'Medium-High' },
+    { id: 12, name: 'Moong / Green Gram (मूंग)', season: 'Zaid', waterRequirementClass: 'Low-Medium' },
+    { id: 13, name: 'Summer Vegetables (सब्जियां)', season: 'Zaid', waterRequirementClass: 'Medium' },
+    { id: 14, name: 'Sunflower (सूरजमुखी)', season: 'Kharif / Rabi', waterRequirementClass: 'Medium' },
+    { id: 15, name: 'Jowar / Sorghum (ज्वार)', season: 'Kharif', waterRequirementClass: 'Low-Medium' },
+    { id: 16, name: 'Groundnut (मूंगफली)', season: 'Kharif', waterRequirementClass: 'Medium' },
+    { id: 17, name: 'Masoor / Lentil (मसूर)', season: 'Rabi', waterRequirementClass: 'Low' },
+    { id: 18, name: 'Turmeric (हल्दी)', season: 'Kharif', waterRequirementClass: 'Medium-High' },
+    { id: 19, name: 'Onion (प्याज)', season: 'Rabi / Zaid', waterRequirementClass: 'Medium' },
+    { id: 20, name: 'Tomato (टमाटर)', season: 'Zaid', waterRequirementClass: 'Medium-High' },
+    { id: 21, name: 'Watermelon (तरबूज)', season: 'Zaid', waterRequirementClass: 'Medium' }
+  ],
+  irrigationPractices: [
+    { id: 'Flood', name: 'Flood Irrigation (पारंपरिक बहाव)', waterEfficiency: 'Low', waterSavingsPercentage: 0 },
+    { id: 'Furrow', name: 'Furrow Irrigation (नाली सिंचाई)', waterEfficiency: 'Medium-Low', waterSavingsPercentage: 15 },
+    { id: 'Sprinkler', name: 'Sprinkler Irrigation (फव्वारा सिंचाई)', waterEfficiency: 'High', waterSavingsPercentage: 35 },
+    { id: 'Drip', name: 'Drip Irrigation (टपक सिंचाई)', waterEfficiency: 'Very High', waterSavingsPercentage: 55 },
+    { id: 'Underground Pipeline & AWD', name: 'Underground Pipeline & AWD (भूमिगत पाइपलाइन)', waterEfficiency: 'High', waterSavingsPercentage: 30 },
+    { id: 'Border', name: 'Border Strip Irrigation (सीमा पट्टी सिंचाई)', waterEfficiency: 'Medium', waterSavingsPercentage: 20 },
+    { id: 'RaisedBed', name: 'Raised Bed Planting (उभरी क्यारी सिंचाई)', waterEfficiency: 'Medium-High', waterSavingsPercentage: 30 },
+    { id: 'Pitcher', name: 'Pitcher / Pot Irrigation (घड़ा सिंचाई)', waterEfficiency: 'Very High', waterSavingsPercentage: 60 }
+  ]
+}
 
 function ApiError({ message, onDismiss }) {
   if (!message) return null
@@ -29,12 +65,151 @@ function ApiError({ message, onDismiss }) {
 }
 
 function Modal({ title, onClose, children }) {
-  return <div className="modal-backdrop" onMouseDown={onClose}><section className="modal" onMouseDown={e => e.stopPropagation()}><header><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header>{children}</section></div>
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="modal" onMouseDown={e => e.stopPropagation()}>
+        <header>
+          <h2>{title}</h2>
+          <button className="icon-button" onClick={onClose} aria-label="Close">
+            <X />
+          </button>
+        </header>
+        {children}
+      </section>
+    </div>
+  )
 }
 
 function Status({ value }) {
   const tone = value === 'ADOPTED' ? 'good' : value === 'NOT_ADOPTED' ? 'bad' : value === 'UNAUDITED' ? 'muted' : 'warn'
   return <span className={`status ${tone}`}>{String(value || 'PENDING').replaceAll('_', ' ')}</span>
+}
+
+/**
+ * High-performance, fully functional Searchable Select Dropdown
+ */
+function SearchableSelect({
+  label,
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Select an option...',
+  icon
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  const normalizedOptions = useMemo(() => {
+    return (options || []).map(opt => {
+      if (typeof opt === 'string') return { value: opt, label: opt }
+      return {
+        value: opt.id || opt.value || opt.name,
+        label: opt.name || opt.label || String(opt.id),
+        sublabel: opt.season ? `${opt.season} Season` : (opt.waterEfficiency ? `${opt.waterEfficiency} Efficiency` : opt.sublabel),
+        badge: opt.waterRequirementClass || (opt.waterSavingsPercentage !== undefined ? `${opt.waterSavingsPercentage}% savings` : null)
+      }
+    })
+  }, [options])
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return normalizedOptions
+    const q = search.toLowerCase()
+    return normalizedOptions.filter(o =>
+      o.label.toLowerCase().includes(q) ||
+      (o.sublabel && o.sublabel.toLowerCase().includes(q)) ||
+      (o.badge && o.badge.toLowerCase().includes(q))
+    )
+  }, [normalizedOptions, search])
+
+  const selectedItem = normalizedOptions.find(o => o.value === value || o.label === value)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  function handleSelect(item) {
+    onChange(item.label || item.value)
+    setOpen(false)
+    setSearch('')
+  }
+
+  return (
+    <div className="searchable-select-wrap" ref={containerRef}>
+      {label && <label className="select-label">{label}</label>}
+      <div
+        className={`select-trigger ${open ? 'active' : ''}`}
+        tabIndex={0}
+        onClick={() => {
+          setOpen(prev => {
+            if (!prev) setTimeout(() => inputRef.current?.focus(), 50)
+            return !prev
+          })
+        }}
+      >
+        <div className="select-val">
+          {icon && <span className="select-icon">{icon}</span>}
+          <span className={selectedItem ? 'val-text' : 'placeholder-text'}>
+            {selectedItem ? selectedItem.label : placeholder}
+          </span>
+        </div>
+        <div className="select-arrow">▼</div>
+      </div>
+
+      {open && (
+        <div className="select-dropdown">
+          <div className="select-search-box">
+            <input
+              ref={inputRef}
+              type="text"
+              className="select-search-input"
+              placeholder={`Search ${label || 'options'}...`}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+            />
+            {search && (
+              <button
+                type="button"
+                className="select-clear-btn"
+                onClick={e => {
+                  e.stopPropagation()
+                  setSearch('')
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <div className="select-options-list">
+            {filtered.map(item => (
+              <div
+                key={item.value}
+                className={`select-option-item ${(item.value === value || item.label === value) ? 'selected' : ''}`}
+                onClick={() => handleSelect(item)}
+              >
+                <div>
+                  <strong className="opt-title">{item.label}</strong>
+                  {item.sublabel && <small className="opt-sub">{item.sublabel}</small>}
+                </div>
+                {item.badge && <span className="opt-badge">{item.badge}</span>}
+              </div>
+            ))}
+            {!filtered.length && (
+              <div className="select-no-results">No matching options found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function App() {
@@ -133,6 +308,8 @@ function Shell({ user, onLogout, notify, request, error, setError, toast }) {
     if (user.role === 'VILLAGE_HEAD') {
       return [
         { id: 'farms', label: 'Farm Workspace', icon: <Building2 /> },
+        { id: 'recommendations', label: 'AI Advisory', icon: <Sparkles /> },
+        { id: 'schemes', label: 'Government Schemes', icon: <Leaf /> },
         { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
       ]
     }
@@ -228,6 +405,10 @@ function Shell({ user, onLogout, notify, request, error, setError, toast }) {
         ) : user.role === 'VILLAGE_HEAD' ? (
           activeTab === 'farms' ? (
             <VillageHeadContent request={request} notify={notify} setError={setError} user={user} />
+          ) : activeTab === 'recommendations' ? (
+            <GeneralRecommendationWorkspace request={request} setError={setError} user={user} />
+          ) : activeTab === 'schemes' ? (
+            <VillageHeadSchemes request={request} setError={setError} />
           ) : (
             <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
               <AssessmentExplorer request={request} setError={setError} />
@@ -313,29 +494,125 @@ function Login({ onSuccess }) {
   )
 }
 
+/**
+ * Dedicated Modal to show tailored AI Recommendation for a specific seasonal crop record
+ */
+function RecordAdvisoryModal({ record, user, request, onClose }) {
+  const [loading, setLoading] = useState(true)
+  const [report, setReport] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!record) return
+    setLoading(true)
+    setError('')
+    request('/api/recommendations', {
+      method: 'POST',
+      body: JSON.stringify({
+        villageId: user.village_id || 1,
+        cropName: record.crop_name,
+        currentPractice: record.current_irrigation_method_name
+      })
+    })
+      .then(res => setReport(res.data))
+      .catch(err => setError(err.message || 'Failed to generate advisory'))
+      .finally(() => setLoading(false))
+  }, [record, user.village_id])
+
+  const waterSavedHa = report?.waterSavedVolumeM3PerHa || 0
+  const areaHa = Number(record.cultivated_area_hectares) || 1
+  const totalFarmSavings = Math.round(waterSavedHa * areaHa)
+
+  return (
+    <Modal title={`AI Irrigation Advisory: ${record.crop_name}`} onClose={onClose}>
+      <div className="record-meta-bar">
+        <div className="record-meta-item">
+          <span>Crop:</span>
+          <strong>{record.crop_name}</strong>
+        </div>
+        <div className="record-meta-item">
+          <span>Season:</span>
+          <strong>{record.season_name} ({record.agricultural_year})</strong>
+        </div>
+        <div className="record-meta-item">
+          <span>Current:</span>
+          <strong>{record.current_irrigation_method_name}</strong>
+        </div>
+        <div className="record-meta-item">
+          <span>Plot Area:</span>
+          <strong>{record.cultivated_area_hectares} ha</strong>
+        </div>
+      </div>
+
+      {loading && <p className="muted">Analyzing soil hydrology, crop water requirements, and local groundwater metrics…</p>}
+      {error && <p className="error">{error}</p>}
+
+      {report && (
+        <div className="advisory-result-card">
+          <div className="advisory-hero">
+            <div className="advisory-hero-header">
+              <span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span>
+              <span className="advisory-practice-title">{report.recommendedPractice?.name}</span>
+            </div>
+            <p className="muted">{report.recommendedPractice?.description}</p>
+          </div>
+
+          <dl className="advisory-metrics-grid">
+            <div className="advisory-stat-card">
+              <dt>Water Savings</dt>
+              <dd className="highlight">{report.waterSavingsPercentage ?? '—'}%</dd>
+            </div>
+            <div className="advisory-stat-card">
+              <dt>Plot Savings</dt>
+              <dd>{totalFarmSavings.toLocaleString()} m³</dd>
+            </div>
+            <div className="advisory-stat-card">
+              <dt>AI Confidence</dt>
+              <dd>{report.confidenceScore ?? '—'}%</dd>
+            </div>
+            <div className="advisory-stat-card">
+              <dt>Groundwater Depth</dt>
+              <dd>{report.diagnostics?.groundwaterLevelMeters ?? '—'} m</dd>
+            </div>
+          </dl>
+
+          {report.reasons?.length > 0 && (
+            <div className="reasons-box">
+              <h4><Sparkles /> Agronomic & Hydrological Insights</h4>
+              <ul className="reasons-list">
+                {report.reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 function VillageHeadContent({ request, notify, setError, user }) {
   const [farms, setFarms] = useState([])
   const [selected, setSelected] = useState(null)
   const [records, setRecords] = useState([])
   const [audits, setAudits] = useState([])
-  const [schemes, setSchemes] = useState([])
   const [lookups, setLookups] = useState({ seasons: [], crops: [], methods: [] })
   const [modal, setModal] = useState(null)
+  const [advisoryRecord, setAdvisoryRecord] = useState(null)
 
   const load = async () => {
     setError('')
     try {
-      const [farmR, auditR, schemeR, seasonR, cropR, methodR] = await Promise.all([
+      const [farmR, auditR, seasonR, cropR, methodR] = await Promise.all([
         request('/api/farms'),
         request('/api/audits'),
-        request('/api/schemes'),
         request('/api/agriculture/seasons'),
         request('/api/agriculture/crops'),
         request('/api/agriculture/irrigation-methods')
       ])
       setFarms(farmR.data.farms)
       setAudits(auditR.data.audits)
-      setSchemes(schemeR.data.schemes)
       setLookups({ seasons: seasonR.data, crops: cropR.data, methods: methodR.data })
       if (!selected && farmR.data.farms[0]) setSelected(farmR.data.farms[0])
     } catch (e) {
@@ -425,8 +702,22 @@ function VillageHeadContent({ request, notify, setError, user }) {
           </section>
 
           <DataTable
-            headers={['Season', 'Crop', 'Year', 'Area', 'Current irrigation']}
-            rows={records.map(r => [r.season_name, r.crop_name, r.agricultural_year, `${r.cultivated_area_hectares} ha`, r.current_irrigation_method_name])}
+            headers={['Season', 'Crop', 'Year', 'Area', 'Current irrigation', 'AI Advisory']}
+            rows={records.map(r => [
+              r.season_name,
+              r.crop_name,
+              r.agricultural_year,
+              `${r.cultivated_area_hectares} ha`,
+              r.current_irrigation_method_name,
+              <button
+                key={r.record_id}
+                type="button"
+                className="inline-ai-btn"
+                onClick={() => setAdvisoryRecord(r)}
+              >
+                <Sparkles /> Advisory
+              </button>
+            ])}
             empty="No seasonal records for this farm."
           />
 
@@ -448,53 +739,372 @@ function VillageHeadContent({ request, notify, setError, user }) {
       ) : (
         <section className="empty">
           <Sprout />
-          <h2>Add your first farm</h2>
-          <p>Farms are restricted to your assigned village.</p>
+          <h2>Select a farm to manage its records</h2>
+          <p>Choose a farm above to add seasonal crop data and view auditor verification logs.</p>
         </section>
       )}
 
-      {/* Decision Support Advisory Panel */}
-      <section className="decision-support">
-        <header className="section-heading">
-          <div>
-            <p className="eyebrow">Decision support</p>
-            <h2>Crop Irrigation Advisory & Recommendation</h2>
-            <p className="muted">Multi-factor recommendation based on groundwater stress, soil texture, crop water demand, and weather.</p>
-          </div>
-        </header>
-        <SearchableRecommendationPanel request={request} setError={setError} villageId={user.village_id} villageName={user.village_name} />
-      </section>
-
-      <SchemeList schemes={schemes} />
-
       {modal === 'farm' && <FarmForm onClose={() => setModal(null)} onSubmit={createFarm} />}
       {modal === 'record' && <RecordForm lookups={lookups} onClose={() => setModal(null)} onSubmit={createRecord} />}
+      {advisoryRecord && (
+        <RecordAdvisoryModal
+          record={advisoryRecord}
+          user={user}
+          request={request}
+          onClose={() => setAdvisoryRecord(null)}
+        />
+      )}
+    </>
+  )
+}
+
+/**
+ * General AI Irrigation Recommendation Workspace with Searchable Dropdowns
+ */
+function GeneralRecommendationWorkspace({ request, setError, user }) {
+  const [cropName, setCropName] = useState('Paddy / Rice (धान / जीरी)')
+  const [currentPractice, setCurrentPractice] = useState('Flood Irrigation (पारंपरिक बहाव)')
+  const [reference, setReference] = useState(DEFAULT_RECOMMENDATION_OPTIONS)
+  const [report, setReport] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    request('/api/reference/recommendation-options')
+      .then(result => {
+        if (result?.data?.crops?.length) setReference(result.data)
+      })
+      .catch(() => {})
+  }, [request])
+
+  async function generate(e) {
+    e.preventDefault()
+    setBusy(true)
+    setReport(null)
+    setError('')
+    try {
+      const result = await request('/api/recommendations', {
+        method: 'POST',
+        body: JSON.stringify({
+          villageId: user.village_id || 1,
+          cropName,
+          currentPractice
+        })
+      })
+      setReport(result.data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const diagnostics = report?.diagnostics
+
+  return (
+    <div className="general-advisory-container">
+      <section className="panel advisory-form-card">
+        <header>
+          <div>
+            <p className="eyebrow">Interactive Advisory</p>
+            <h2>Simulation parameters</h2>
+          </div>
+        </header>
+        <p className="muted">
+          Select any crop and current irrigation method to evaluate water efficiency and agronomic suitability for{' '}
+          <strong>{user.village_name || 'your assigned area'}</strong>.
+        </p>
+
+        <form className="stack" onSubmit={generate}>
+          <SearchableSelect
+            label="Crop selection"
+            value={cropName}
+            onChange={setCropName}
+            options={reference.crops}
+            placeholder="Search crop by name, season..."
+            icon={<Sprout />}
+          />
+
+          <SearchableSelect
+            label="Current irrigation practice"
+            value={currentPractice}
+            onChange={setCurrentPractice}
+            options={reference.irrigationPractices}
+            placeholder="Search irrigation method..."
+            icon={<Droplets />}
+          />
+
+          <button className="button primary" disabled={busy}>
+            {busy ? 'Running AI simulation…' : 'Generate AI recommendation'}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel advisory-result-card">
+        <header>
+          <div>
+            <p className="eyebrow">AI Evaluation & Agronomic Decision</p>
+            <h2>Recommendation report</h2>
+          </div>
+        </header>
+
+        {busy && (
+          <div className="empty">
+            <Sparkles />
+            <h2>Evaluating agronomic factors…</h2>
+            <p>Computing FAO-56 crop coefficients, soil water retention, and regional groundwater drawdown.</p>
+          </div>
+        )}
+
+        {!busy && !report && (
+          <div className="empty">
+            <Sparkles />
+            <h2>No active simulation</h2>
+            <p>Select your crop and irrigation method, then click "Generate AI recommendation".</p>
+          </div>
+        )}
+
+        {report && (
+          <>
+            <div className="advisory-hero">
+              <div className="advisory-hero-header">
+                <span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span>
+                <span className="advisory-practice-title">{report.recommendedPractice?.name}</span>
+              </div>
+              <p className="muted">{report.recommendedPractice?.description}</p>
+            </div>
+
+            <dl className="advisory-metrics-grid">
+              <div className="advisory-stat-card">
+                <dt>Water Savings</dt>
+                <dd className="highlight">{report.waterSavingsPercentage ?? '—'}%</dd>
+              </div>
+              <div className="advisory-stat-card">
+                <dt>Conserved Volume</dt>
+                <dd>{(report.waterSavedVolumeM3PerHa ?? 0).toLocaleString()} m³/ha</dd>
+              </div>
+              <div className="advisory-stat-card">
+                <dt>AI Confidence</dt>
+                <dd>{report.confidenceScore ?? '—'}%</dd>
+              </div>
+              <div className="advisory-stat-card">
+                <dt>Groundwater Depth</dt>
+                <dd>{diagnostics?.groundwaterLevelMeters ?? '—'} m</dd>
+              </div>
+            </dl>
+
+            {report.reasons?.length > 0 && (
+              <div className="reasons-box">
+                <h4><Sparkles /> Scientific & Agronomic Justification</h4>
+                <ul className="reasons-list">
+                  {report.reasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {report.allTechniqueScores?.length > 0 && (
+              <div>
+                <h3>Technique Suitability Ranking</h3>
+                <table className="technique-score-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Technique</th>
+                      <th>Efficiency</th>
+                      <th>Water Savings</th>
+                      <th>Suitability Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.allTechniqueScores.map((t, idx) => (
+                      <tr key={t.id} className={idx === 0 ? 'top-pick' : ''}>
+                        <td>#{idx + 1}</td>
+                        <td>{t.name}</td>
+                        <td>{t.efficiency || 'Standard'}</td>
+                        <td>{t.waterSavingsPercentage}%</td>
+                        <td><strong>{t.score}/100</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
+/**
+ * Dedicated Schemes tab view for Village Head
+ */
+function VillageHeadSchemes({ request, setError }) {
+  const [schemes, setSchemes] = useState([])
+  const [search, setSearch] = useState('')
+  const [busy, setBusy] = useState(true)
+
+  useEffect(() => {
+    setBusy(true)
+    setError('')
+    request('/api/schemes')
+      .then(res => setSchemes(res.data?.schemes || []))
+      .catch(err => setError(err.message))
+      .finally(() => setBusy(false))
+  }, [request, setError])
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return schemes
+    const q = search.toLowerCase()
+    return schemes.filter(s =>
+      s.name?.toLowerCase().includes(q) ||
+      s.description?.toLowerCase().includes(q) ||
+      s.benefit_description?.toLowerCase().includes(q) ||
+      s.eligibility?.toLowerCase().includes(q)
+    )
+  }, [schemes, search])
+
+  return (
+    <>
+      <section className="toolbar">
+        <div>
+          <p className="eyebrow">Support & Subsidies</p>
+          <h2>Government Agricultural Schemes</h2>
+        </div>
+      </section>
+
+      <div className="schemes-search-bar">
+        <input
+          type="text"
+          placeholder="Search schemes by name, subsidy benefit, eligibility, or crop..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <section className="scheme-grid">
+        {filtered.map(s => (
+          <article className="scheme-card" key={s.scheme_id}>
+            <span className="status muted">{s.government_level || 'State Government'}</span>
+            <h3>{s.name}</h3>
+            <p>{s.benefit_description || s.description}</p>
+            {s.eligibility && (
+              <small style={{ display: 'block', marginTop: '8px', color: 'var(--muted)' }}>
+                <strong>Eligibility:</strong> {s.eligibility}
+              </small>
+            )}
+            {s.external_link && (
+              <div style={{ marginTop: '14px' }}>
+                <a
+                  href={s.external_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="button small"
+                  style={{ textDecoration: 'none', display: 'inline-flex' }}
+                >
+                  Official Portal ↗
+                </a>
+              </div>
+            )}
+          </article>
+        ))}
+        {!filtered.length && !busy && (
+          <section className="empty">
+            <Building2 />
+            <h2>No matching schemes found</h2>
+            <p>Try searching with a different keyword.</p>
+          </section>
+        )}
+      </section>
     </>
   )
 }
 
 function AuditorContent({ request, notify, setError }) {
-  const [audits, setAudits] = useState([]); const [methods, setMethods] = useState([]); const [editing, setEditing] = useState(null)
-  const load = async () => { try { const [a, m] = await Promise.all([request('/api/audits'), request('/api/agriculture/irrigation-methods')]); setAudits(a.data.audits); setMethods(m.data) } catch (e) { setError(e.message) } }
+  const [audits, setAudits] = useState([])
+  const [methods, setMethods] = useState([])
+  const [editing, setEditing] = useState(null)
+
+  const load = async () => {
+    setError('')
+    try {
+      const [a, m] = await Promise.all([request('/api/audits'), request('/api/agriculture/irrigation-methods')])
+      setAudits(a.data.audits)
+      setMethods(m.data)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   useEffect(() => { load() }, [])
-  async function save(values) { try { const body = JSON.stringify({ ...values, record_id: editing.record_id, actual_irrigation_method_id: Number(values.actual_irrigation_method_id) }); await request(editing.audit_id ? `/api/audits/${editing.audit_id}` : '/api/audits', { method: editing.audit_id ? 'PUT' : 'POST', body }); setEditing(null); await load(); notify('Audit verification saved.') } catch (e) { setError(e.message) } }
-  const unverified = audits.filter(a => a.adoption_status === 'UNAUDITED').length
-  return <><section className="summary"><Metric icon={<BadgeCheck />} label="Records to verify" value={unverified} /><Metric icon={<MapPin />} label="District records" value={audits.length} /><Metric icon={<Droplets />} label="Adopted" value={audits.filter(a => a.adoption_status === 'ADOPTED').length} /></section><section className="panel"><header><div><p className="eyebrow">Field verification</p><h2>Seasonal crop record verification grid</h2></div><span className="muted">Select a record to verify or revise.</span></header><div className="table-wrap"><table><thead><tr><th>Farm / village</th><th>Crop / season</th><th>Current method</th><th>Status</th><th></th></tr></thead><tbody>{audits.map(a => <tr key={`${a.record_id}-${a.audit_id || 'new'}`}><td><strong>{a.farm_name}</strong><small>{a.village_name}</small></td><td>{a.crop_name}<small>{a.season_name} · {a.agricultural_year}</small></td><td>{a.current_irrigation_method_name || '—'}</td><td><Status value={a.adoption_status} /></td><td><button className="button small" onClick={() => setEditing(a)}>{a.audit_id ? 'Update' : 'Verify'}</button></td></tr>)}{!audits.length && <tr><td colSpan="5" className="empty-cell">No records are available in your district.</td></tr>}</tbody></table></div></section>{editing && <AuditForm audit={editing} methods={methods} onClose={() => setEditing(null)} onSubmit={save} />}</>
+
+  async function save(values) {
+    try {
+      const payload = {
+        actual_irrigation_method_id: Number(values.actual_irrigation_method_id),
+        adoption_status: values.adoption_status,
+        audit_date: values.audit_date,
+        notes: values.notes
+      }
+      if (editing.audit_id) {
+        await request(`/api/audits/${editing.audit_id}`, { method: 'PUT', body: JSON.stringify(payload) })
+      } else {
+        await request('/api/audits', { method: 'POST', body: JSON.stringify({ ...payload, record_id: editing.record_id }) })
+      }
+      setEditing(null)
+      await load()
+      notify('Verification saved.')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  return (
+    <>
+      <section className="summary">
+        <Metric icon={<Building2 />} label="Assigned audit records" value={audits.length} />
+        <Metric icon={<BadgeCheck />} label="Verified adopted" value={audits.filter(a => a.adoption_status === 'ADOPTED').length} />
+        <Metric icon={<Droplets />} label="Pending verification" value={audits.filter(a => a.adoption_status !== 'ADOPTED').length} />
+      </section>
+
+      <DataTable
+        headers={['Farm', 'Village', 'Crop', 'Season', 'Year', 'Status', 'Audit Date', 'Action']}
+        rows={audits.map(a => [
+          a.farm_name,
+          a.village_name,
+          a.crop_name,
+          a.season_name,
+          a.agricultural_year,
+          <Status key={a.audit_id || a.record_id} value={a.adoption_status} />,
+          a.audit_date ? String(a.audit_date).slice(0, 10) : '—',
+          <button key={a.audit_id || a.record_id} className="button small" onClick={() => setEditing(a)}>Verify</button>
+        ])}
+        empty="No audits available for your district scope."
+      />
+
+      {editing && <AuditForm audit={editing} methods={methods} onClose={() => setEditing(null)} onSubmit={save} />}
+    </>
+  )
 }
 
 function AdminContent({ request, notify, setError }) {
   const [schemes, setSchemes] = useState([])
   const [editing, setEditing] = useState(null)
 
-  const load = () => request('/api/schemes').then(r => setSchemes(r.data.schemes)).catch(e => setError(e.message))
+  const load = () => {
+    setError('')
+    request('/api/schemes').then(r => setSchemes(r.data.schemes)).catch(e => setError(e.message))
+  }
   useEffect(() => { load() }, [])
 
   async function save(values) {
     try {
-      await request(editing?.scheme_id ? `/api/schemes/${editing.scheme_id}` : '/api/schemes', {
-        method: editing?.scheme_id ? 'PUT' : 'POST',
-        body: JSON.stringify(values)
-      })
+      if (editing?.scheme_id) {
+        await request(`/api/schemes/${editing.scheme_id}`, { method: 'PUT', body: JSON.stringify(values) })
+      } else {
+        await request('/api/schemes', { method: 'POST', body: JSON.stringify(values) })
+      }
       setEditing(null)
       load()
       notify(editing?.scheme_id ? 'Scheme updated.' : 'Scheme created.')
@@ -598,15 +1208,9 @@ function PredictionTest({ request, setError }) {
     try {
       const response = await request('/api/ml/predict', {
         method: 'POST',
-        body: JSON.stringify({
-          ...form,
-          Latitude: Number(form.Latitude),
-          Longitude: Number(form.Longitude),
-          Year: Number(form.Year),
-          Month: Number(form.Month)
-        })
+        body: JSON.stringify(form)
       })
-      setResult(response.predicted_gwl_meters)
+      setResult(response.data?.predicted_groundwater_level_m_bgl ?? null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -615,28 +1219,18 @@ function PredictionTest({ request, setError }) {
   }
 
   return (
-    <section className="panel prediction-test">
+    <section className="panel compact-panel">
       <header>
         <div>
           <Bot />
-          <div>
-            <p className="eyebrow">ML microservice</p>
-            <h2>Live AI groundwater prediction test</h2>
-          </div>
+          <h2>ML Groundwater Depth Prediction</h2>
         </div>
       </header>
-      <p className="muted">
-        Test the FastAPI depth-to-water prediction through the Node backend. Select or search a station to auto-fill its recorded coordinates.
-      </p>
-      <form onSubmit={submit} className="prediction-grid">
+      <p className="muted">Run on-demand machine learning predictions for any district, tehsil, or monitoring station.</p>
+      <form className="compact-form" onSubmit={submit}>
         <label>
           District
-          <input list="prediction-districts" value={form.District} onChange={e => change('District', e.target.value)} required />
-          <datalist id="prediction-districts">
-            {[...new Set(locations.map(x => x.district_name).filter(Boolean))].map(name => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
+          <input value={form.District} onChange={e => change('District', e.target.value)} required />
         </label>
         <label>
           Tehsil
@@ -691,183 +1285,192 @@ function PredictionTest({ request, setError }) {
   )
 }
 
-const DEFAULT_RECOMMENDATION_OPTIONS = {
-  crops: [
-    { id: 1, name: 'Paddy / Rice' },
-    { id: 2, name: 'Wheat' },
-    { id: 3, name: 'Cotton' },
-    { id: 4, name: 'Sugarcane' },
-    { id: 5, name: 'Mustard' },
-    { id: 6, name: 'Bajra' },
-    { id: 7, name: 'Potato / Tomato' }
-  ],
-  irrigationPractices: [
-    { id: 'Flood', name: 'Flood Irrigation' },
-    { id: 'Drip', name: 'Drip Irrigation' },
-    { id: 'Sprinkler', name: 'Sprinkler Irrigation' },
-    { id: 'AWD', name: 'Alternate Wetting & Drying (AWD)' },
-    { id: 'Furrow', name: 'Furrow Irrigation' }
-  ]
-}
-
-function SearchableRecommendationPanel({ request, setError, villageId, villageName }) {
-  const [reference, setReference] = useState(DEFAULT_RECOMMENDATION_OPTIONS)
-  const [cropName, setCropName] = useState('Paddy / Rice')
-  const [currentPractice, setCurrentPractice] = useState('Flood')
-  const [report, setReport] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    request('/api/reference/recommendation-options')
-      .then(result => {
-        if (result?.data?.crops?.length) {
-          setReference(result.data)
-        }
-      })
-      .catch(() => {
-        // Silently keep default options without polluting top-level error state
-      })
-  }, [request])
-
-  async function generate(event) {
-    event.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      const result = await request('/api/recommendations', {
-        method: 'POST',
-        body: JSON.stringify({ villageId, cropName, currentPractice })
-      })
-      setReport(result.data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
+function Metric({ icon, label, value }) {
   return (
-    <article className="panel recommendation-panel">
-      <header>
-        <div>
-          <Sparkles />
-          <h2>Crop irrigation recommendation</h2>
-        </div>
-      </header>
-      <p className="muted">Village: <strong>{villageName || `ID ${villageId}`}</strong></p>
-      <form className="compact-form" onSubmit={generate}>
-        <label>
-          Crop — searchable
-          <input
-            list="recommendation-crops"
-            value={cropName}
-            onChange={event => setCropName(event.target.value)}
-            required
-          />
-          <datalist id="recommendation-crops">
-            {(reference.crops || []).map(crop => (
-              <option key={crop.id || crop.name} value={crop.name} />
-            ))}
-          </datalist>
-        </label>
-        <label>
-          Current practice — searchable
-          <input
-            list="recommendation-practices"
-            value={currentPractice}
-            onChange={event => setCurrentPractice(event.target.value)}
-            required
-          />
-          <datalist id="recommendation-practices">
-            {(reference.irrigationPractices || []).map(practice => (
-              <option key={practice.id || practice.name} value={practice.id || practice.name}>
-                {practice.name || practice.id}
-              </option>
-            ))}
-          </datalist>
-        </label>
-        <button className="button primary" disabled={busy || !villageId}>
-          {busy ? 'Generating…' : 'Generate recommendation'}
-        </button>
-      </form>
-      {report && (
-        <div className="recommendation-result">
-          <div className="recommendation-title">
-            <span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span>
-            <strong>{report.recommendedPractice?.name || report.recommendedPractice?.id}</strong>
-          </div>
-          <p>{report.reasons?.[0] || 'No reason was returned.'}</p>
-          <dl className="result-stats">
-            <div>
-              <dt>Water saving</dt>
-              <dd>{report.waterSavingsPercentage ?? '—'}%</dd>
-            </div>
-            <div>
-              <dt>Confidence</dt>
-              <dd>{report.confidenceScore ?? '—'}%</dd>
-            </div>
-            <div>
-              <dt>Groundwater</dt>
-              <dd>{report.diagnostics?.groundwaterLevelMeters ?? '—'} m</dd>
-            </div>
-          </dl>
-        </div>
-      )}
+    <article className="metric">
+      <span>{icon}</span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
     </article>
   )
 }
 
-function RecommendationPanel({ request, setError, villageId, villageName }) {
-  const [cropName, setCropName] = useState('Paddy / Rice'); const [currentPractice, setCurrentPractice] = useState('Flood'); const [reference, setReference] = useState({ crops: [], irrigationPractices: [] }); const [report, setReport] = useState(null); const [busy, setBusy] = useState(false)
-  useEffect(() => { request('/api/reference/recommendation-options').then(result => setReference(result.data)).catch(err => setError(err.message)) }, [request, setError])
-  async function generate(e) {
-    e.preventDefault(); setBusy(true); setReport(null); setError('')
-    try {
-      const result = await request('/api/recommendations', { method: 'POST', body: JSON.stringify({ villageId, cropName, currentPractice }) })
-      setReport(result.data)
-    } catch (err) { setError(err.message) } finally { setBusy(false) }
+function DataTable({ headers, rows, empty }) {
+  return (
+    <section className="panel">
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {headers.map(h => <th key={h}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, x) => (
+                  <td key={x}>{cell || '—'}</td>
+                ))}
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td className="empty-cell" colSpan={headers.length}>{empty}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function FarmForm({ onClose, onSubmit }) {
+  return (
+    <Modal title="Add farm" onClose={onClose}>
+      <Form onSubmit={onSubmit} submit="Create farm">
+        <label>
+          Farm name
+          <input name="name" required />
+        </label>
+        <label>
+          Owner name
+          <input name="owner_name" />
+        </label>
+        <label>
+          Total land area (hectares)
+          <input name="total_land_area_hectares" type="number" min="0.01" step="0.01" required />
+        </label>
+      </Form>
+    </Modal>
+  )
+}
+
+function RecordForm({ onClose, onSubmit, lookups }) {
+  return (
+    <Modal title="Add seasonal crop record" onClose={onClose}>
+      <Form onSubmit={onSubmit} submit="Add record">
+        <label>
+          Season
+          <select name="season_id" required>
+            <option value="">Select season</option>
+            {lookups.seasons.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Crop
+          <select name="crop_id" required>
+            <option value="">Select crop</option>
+            {lookups.crops.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Agricultural year
+          <input name="agricultural_year" placeholder="2026-2027" required />
+        </label>
+        <label>
+          Cultivated area (hectares)
+          <input name="cultivated_area_hectares" type="number" min="0.01" step="0.01" required />
+        </label>
+        <label>
+          Current irrigation method
+          <select name="current_irrigation_method_id" required>
+            <option value="">Select method</option>
+            {lookups.methods.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+      </Form>
+    </Modal>
+  )
+}
+
+function AuditForm({ audit, methods, onClose, onSubmit }) {
+  return (
+    <Modal title={audit.audit_id ? 'Update audit verification' : 'Verify irrigation adoption'} onClose={onClose}>
+      <p className="muted">{audit.farm_name} · {audit.crop_name} · {audit.season_name}</p>
+      <Form onSubmit={onSubmit} submit="Save verification">
+        <label>
+          Actual irrigation method
+          <select name="actual_irrigation_method_id" defaultValue={audit.actual_irrigation_method_id || ''} required>
+            <option value="">Select method</option>
+            {methods.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Adoption status
+          <select name="adoption_status" defaultValue={audit.adoption_status === 'UNAUDITED' ? 'ADOPTED' : audit.adoption_status} required>
+            <option value="ADOPTED">Adopted</option>
+            <option value="NOT_ADOPTED">Not adopted</option>
+            <option value="PENDING">Pending</option>
+          </select>
+        </label>
+        <label>
+          Audit date
+          <input name="audit_date" type="date" defaultValue={audit.audit_date ? String(audit.audit_date).slice(0, 10) : today} required />
+        </label>
+        <label>
+          Notes
+          <textarea name="notes" defaultValue={audit.notes || ''} />
+        </label>
+      </Form>
+    </Modal>
+  )
+}
+
+function SchemeForm({ scheme, onClose, onSubmit }) {
+  return (
+    <Modal title={scheme.scheme_id ? 'Edit government scheme' : 'Create government scheme'} onClose={onClose}>
+      <Form onSubmit={onSubmit} submit="Save scheme">
+        <label>
+          Name
+          <input name="name" defaultValue={scheme.name || ''} required />
+        </label>
+        <label>
+          Description
+          <textarea name="description" defaultValue={scheme.description || ''} required />
+        </label>
+        <label>
+          Government level
+          <input name="government_level" defaultValue={scheme.government_level || ''} />
+        </label>
+        <label>
+          Benefit description
+          <textarea name="benefit_description" defaultValue={scheme.benefit_description || ''} />
+        </label>
+        <label>
+          Eligibility
+          <textarea name="eligibility" defaultValue={scheme.eligibility || ''} />
+        </label>
+        <label>
+          Application information
+          <textarea name="application_information" defaultValue={scheme.application_information || ''} />
+        </label>
+        <label>
+          Official link
+          <input name="external_link" type="url" defaultValue={scheme.external_link || ''} />
+        </label>
+      </Form>
+    </Modal>
+  )
+}
+
+function Form({ children, onSubmit, submit }) {
+  const [busy, setBusy] = useState(false)
+  const submitForm = async e => {
+    e.preventDefault()
+    setBusy(true)
+    const values = Object.fromEntries(new FormData(e.currentTarget))
+    await onSubmit(values)
+    setBusy(false)
   }
-  const diagnostics = report?.diagnostics
-  return <article className="panel recommendation-panel"><header><div><Sparkles /><h2>Crop irrigation recommendation</h2></div></header><p className="muted">Village: <strong>{villageName || `ID ${villageId}`}</strong></p><form className="compact-form" onSubmit={generate}><label>Crop<input value={cropName} onChange={e => setCropName(e.target.value)} required /></label><label>Current irrigation<select value={currentPractice} onChange={e => setCurrentPractice(e.target.value)}><option>Flood Irrigation</option><option>Drip Irrigation</option><option>Sprinkler Irrigation</option></select></label><button className="button primary" disabled={busy || !villageId}>{busy ? 'Generating…' : 'Generate recommendation'}</button></form>{!villageId && <p className="error">Your account has no assigned village, so a recommendation cannot be generated.</p>}{report && <div className="recommendation-result"><div className="recommendation-title"><span className="status good">{report.actionRequired?.replaceAll('_', ' ')}</span><strong>{report.recommendedPractice?.name || report.recommendedPractice?.id}</strong></div><p>{report.reasons?.[0] || 'No reason was returned.'}</p><dl className="result-stats"><div><dt>Water saving</dt><dd>{report.waterSavingsPercentage ?? '—'}%</dd></div><div><dt>Confidence</dt><dd>{report.confidenceScore ?? '—'}%</dd></div><div><dt>Groundwater</dt><dd>{diagnostics?.groundwaterLevelMeters ?? '—'} m</dd></div></dl>{report.reasons?.length > 1 && <ul>{report.reasons.slice(1).map(reason => <li key={reason}>{reason}</li>)}</ul>}</div>}</article>
+  return (
+    <form className="stack" onSubmit={submitForm}>
+      {children}
+      <button className="button primary" disabled={busy}>
+        {busy ? 'Saving…' : submit}
+      </button>
+    </form>
+  )
 }
-
-function LiveGroundwaterMap({ request, setError }) {
-  const containerRef = useRef(null); const mapRef = useRef(null); const layersRef = useRef([]); const [data, setData] = useState(null); const [busy, setBusy] = useState(false); const [mode, setMode] = useState('combined')
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return undefined
-    const map = L.map(containerRef.current, { center: [29.15, 76.3], zoom: 8, scrollWheelZoom: false })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap contributors' }).addTo(map)
-    mapRef.current = map
-    return () => { map.remove(); mapRef.current = null }
-  }, [])
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !data) return
-    layersRef.current.forEach(layer => map.removeLayer(layer)); layersRef.current = []
-    const predictions = data.predictions || []; const farms = data.farms || []
-    if (mode !== 'farms' && predictions.length) {
-      const heat = L.heatLayer(predictions.map(p => [p.latitude, p.longitude, p.heat_intensity]), { radius: 30, blur: 22, maxZoom: 12, gradient: { 0.2: '#38bdf8', 0.5: '#facc15', 0.8: '#dc2626' } }).addTo(map)
-      layersRef.current.push(heat)
-      const stations = L.layerGroup(predictions.map(p => L.circleMarker([p.latitude, p.longitude], { radius: 6, color: p.color || '#2563eb', fillColor: p.color || '#2563eb', fillOpacity: .92, weight: 2 }).bindPopup(`<strong>${safeText(p.village_name)}</strong><br>Station: ${safeText(p.station_name || '—')}<br>Depth to water: ${Number(p.predicted_gwl_meters).toFixed(2)} m bgl<br>${safeText(p.condition)}`))).addTo(map)
-      layersRef.current.push(stations)
-    }
-    if (mode !== 'heat' && farms.length) {
-      const farmLayer = L.layerGroup(farms.map(f => L.circleMarker([f.latitude, f.longitude], { radius: 7, color: '#244f34', fillColor: '#fff', fillOpacity: 1, weight: 3 }).bindPopup(`<strong>${safeText(f.name)}</strong><br>${safeText(f.village_name)}<br>Local water depth: ${Number(f.local_gwl_meters).toFixed(2)} m bgl<br>${safeText(f.local_condition)}`))).addTo(map)
-      layersRef.current.push(farmLayer)
-    }
-    const coords = [...predictions, ...farms].filter(p => Number.isFinite(Number(p.latitude)) && Number.isFinite(Number(p.longitude))).map(p => [p.latitude, p.longitude])
-    if (coords.length) map.fitBounds(coords, { padding: [28, 28], maxZoom: 12 })
-  }, [data, mode])
-  async function loadPredictions() { setBusy(true); setError(''); try { const result = await request('/api/groundwater/heatmap'); setData(result.data) } catch (err) { setError(err.message) } finally { setBusy(false) } }
-  return <article className="panel live-map-panel"><header><div><Map /><h2>Live groundwater prediction map</h2></div><button className="button small" onClick={loadPredictions} disabled={busy}>{busy ? 'Loading…' : 'Load predictions'}</button></header><p className="muted">ML station predictions and nearby farms are shown only for your authorised area.</p><div className="map-controls"><label>Layer<select value={mode} onChange={e => setMode(e.target.value)}><option value="combined">Heat, stations & farms</option><option value="heat">Heat & stations</option><option value="farms">Farm markers</option></select></label>{data && <span className="map-summary"><Waves /> {data.predictionCount} stations · {data.farmCount} farms</span>}</div><div className="live-map" ref={containerRef} aria-label="Live groundwater prediction map" />{!data && <p className="map-hint">Load predictions to render the role-scoped heat layer.</p>}</article>
-}
-
-function safeText(value) { return String(value ?? '—').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;') }
-function Metric({ icon, label, value }) { return <article className="metric"><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></article> }
-function DataTable({ headers, rows, empty }) { return <section className="panel"><div className="table-wrap"><table><thead><tr>{headers.map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={i}>{row.map((cell, x) => <td key={x}>{cell || '—'}</td>)}</tr>)}{!rows.length && <tr><td className="empty-cell" colSpan={headers.length}>{empty}</td></tr>}</tbody></table></div></section> }
-function SchemeList({ schemes }) { return <section className="panel"><header><div><p className="eyebrow">Support</p><h2>Government schemes</h2></div></header><div className="scheme-grid compact">{schemes.map(s => <article className="scheme-card" key={s.scheme_id}><span className="status muted">{s.government_level || 'Government'}</span><h3>{s.name}</h3><p>{s.benefit_description || s.description}</p>{s.external_link && <a href={s.external_link} target="_blank" rel="noreferrer">View official information</a>}</article>)}</div></section> }
-function FarmForm({ onClose, onSubmit }) { return <Modal title="Add farm" onClose={onClose}><Form onSubmit={onSubmit} submit="Create farm"><label>Farm name<input name="name" required /></label><label>Owner name<input name="owner_name" /></label><label>Total land area (hectares)<input name="total_land_area_hectares" type="number" min="0.01" step="0.01" required /></label></Form></Modal> }
-function RecordForm({ onClose, onSubmit, lookups }) { return <Modal title="Add seasonal crop record" onClose={onClose}><Form onSubmit={onSubmit} submit="Add record"><label>Season<select name="season_id" required><option value="">Select season</option>{lookups.seasons.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Crop<select name="crop_id" required><option value="">Select crop</option>{lookups.crops.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Agricultural year<input name="agricultural_year" placeholder="2026-2027" required /></label><label>Cultivated area (hectares)<input name="cultivated_area_hectares" type="number" min="0.01" step="0.01" required /></label><label>Current irrigation method<select name="current_irrigation_method_id" required><option value="">Select method</option>{lookups.methods.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label></Form></Modal> }
-function AuditForm({ audit, methods, onClose, onSubmit }) { return <Modal title={audit.audit_id ? 'Update audit verification' : 'Verify irrigation adoption'} onClose={onClose}><p className="muted">{audit.farm_name} · {audit.crop_name} · {audit.season_name}</p><Form onSubmit={onSubmit} submit="Save verification"><label>Actual irrigation method<select name="actual_irrigation_method_id" defaultValue={audit.actual_irrigation_method_id || ''} required><option value="">Select method</option>{methods.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Adoption status<select name="adoption_status" defaultValue={audit.adoption_status === 'UNAUDITED' ? 'ADOPTED' : audit.adoption_status} required><option value="ADOPTED">Adopted</option><option value="NOT_ADOPTED">Not adopted</option><option value="PENDING">Pending</option></select></label><label>Audit date<input name="audit_date" type="date" defaultValue={audit.audit_date ? String(audit.audit_date).slice(0, 10) : today} required /></label><label>Notes<textarea name="notes" defaultValue={audit.notes || ''} /></label></Form></Modal> }
-function SchemeForm({ scheme, onClose, onSubmit }) { return <Modal title={scheme.scheme_id ? 'Edit government scheme' : 'Create government scheme'} onClose={onClose}><Form onSubmit={onSubmit} submit="Save scheme"><label>Name<input name="name" defaultValue={scheme.name || ''} required /></label><label>Description<textarea name="description" defaultValue={scheme.description || ''} required /></label><label>Government level<input name="government_level" defaultValue={scheme.government_level || ''} /></label><label>Benefit description<textarea name="benefit_description" defaultValue={scheme.benefit_description || ''} /></label><label>Eligibility<textarea name="eligibility" defaultValue={scheme.eligibility || ''} /></label><label>Application information<textarea name="application_information" defaultValue={scheme.application_information || ''} /></label><label>Official link<input name="external_link" type="url" defaultValue={scheme.external_link || ''} /></label></Form></Modal> }
-function Form({ children, onSubmit, submit }) { const [busy, setBusy] = useState(false); const submitForm = async e => { e.preventDefault(); setBusy(true); const values = Object.fromEntries(new FormData(e.currentTarget)); await onSubmit(values); setBusy(false) }; return <form className="stack" onSubmit={submitForm}>{children}<button className="button primary" disabled={busy}>{busy ? 'Saving…' : submit}</button></form> }
