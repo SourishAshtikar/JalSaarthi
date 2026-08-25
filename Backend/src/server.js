@@ -5,6 +5,8 @@ const { ensureDatabaseInitialized } = require('./db/autoMigrate');
 
 const net = require('net');
 const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 3000;
 let mlProcess = null;
@@ -21,7 +23,24 @@ function startMLService() {
     .once('listening', () => {
       tester.close(() => {
         console.log('🤖 Auto-starting Python ML FastAPI microservice on port 8000...');
-        mlProcess = spawn('python', ['-m', 'uvicorn', 'Model.api_intergate:app', '--host', '127.0.0.1', '--port', '8000'], {
+        
+        let pythonPath = 'python';
+        const venvPaths = [
+          path.join(__dirname, '..', '..', '.venv', 'Scripts', 'python.exe'),
+          path.join(__dirname, '..', '..', '.venv', 'bin', 'python'),
+          path.join(__dirname, '..', '.venv', 'Scripts', 'python.exe'),
+          path.join(__dirname, '..', '.venv', 'bin', 'python')
+        ];
+
+        for (const p of venvPaths) {
+          if (fs.existsSync(p)) {
+            pythonPath = p.includes(' ') ? `"${p}"` : p;
+            console.log(`ℹ️ Using Python virtual environment: ${p}`);
+            break;
+          }
+        }
+
+        mlProcess = spawn(pythonPath, ['-m', 'uvicorn', 'Model.api_intergate:app', '--host', '127.0.0.1', '--port', '8000'], {
           shell: true
         });
         
