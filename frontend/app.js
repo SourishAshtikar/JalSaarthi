@@ -299,7 +299,6 @@ function initLeafletMap(defaultLat = 29.15, defaultLng = 76.3, defaultZoom = 8) 
         <div class="map-legend-item"><div class="map-legend-color" style="background:#2563eb;"></div>Semi Critical</div>
         <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>Critical</div>
         <div class="map-legend-item"><div class="map-legend-color" style="background:#dc2626;"></div>Over Exploited</div>
-        <div class="map-legend-item"><div class="map-legend-color" style="background:#e2e8f0;"></div>Hilly Area</div>
         <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
       `;
       return div;
@@ -312,13 +311,18 @@ function initLeafletMap(defaultLat = 29.15, defaultLng = 76.3, defaultZoom = 8) 
   return leafletMap;
 }
 
+function normalizeCategory(cat) {
+  if (cat === 'Hilly Area') return 'Safe';
+  return cat || 'No Data';
+}
+
 function getCategoryColor(cat) {
-  switch (cat) {
+  const normCat = normalizeCategory(cat);
+  switch (normCat) {
     case 'Safe': return '#dbeafe';
     case 'Semi Critical': return '#2563eb';
     case 'Critical': return '#facc15';
     case 'Over Exploited': return '#dc2626';
-    case 'Hilly Area': return '#e2e8f0';
     default: return '#64748b';
   }
 }
@@ -354,7 +358,6 @@ function updateMapLegend(mode) {
       <div class="map-legend-item"><div class="map-legend-color" style="background:#2563eb;"></div>Semi Critical</div>
       <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>Critical</div>
       <div class="map-legend-item"><div class="map-legend-color" style="background:#dc2626;"></div>Over Exploited</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#e2e8f0;"></div>Hilly Area</div>
       <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
     `;
   }
@@ -442,7 +445,7 @@ async function loadGroundwaterHeatmap() {
           onEachFeature: function (feature, layer) {
             const districtName = feature.properties.NAME_2;
             const match = cachedAssessments.find(a => a.district_name.toLowerCase() === districtName.toLowerCase());
-            const cat = match ? match.category : 'No Data';
+            const cat = normalizeCategory(match ? match.category : 'No Data');
             const dtwVal = match && match.dtw_m_bgl != null ? `${match.dtw_m_bgl} m bgl` : 'N/A';
 
             if (match) {
@@ -524,7 +527,7 @@ async function loadGroundwaterHeatmap() {
             if (!match) {
               match = cachedAssessments.find(a => a.district_name.toLowerCase().trim() === dName.toLowerCase().trim());
             }
-            const cat = match ? match.category : 'Safe';
+            const cat = normalizeCategory(match ? match.category : 'Safe');
             const dtwVal = match && match.dtw_m_bgl != null ? `${match.dtw_m_bgl} m bgl` : 'N/A';
 
             if (match) {
@@ -630,10 +633,11 @@ function updateSummaryCounters(assessments, mode = 'category') {
   } else {
     let safe = 0, semi = 0, critical = 0, over = 0;
     assessments.forEach(a => {
-      if (a.category === 'Safe') safe++;
-      else if (a.category === 'Semi Critical') semi++;
-      else if (a.category === 'Critical') critical++;
-      else if (a.category === 'Over Exploited') over++;
+      const normCat = normalizeCategory(a.category);
+      if (normCat === 'Safe') safe++;
+      else if (normCat === 'Semi Critical') semi++;
+      else if (normCat === 'Critical') critical++;
+      else if (normCat === 'Over Exploited') over++;
     });
 
     container.innerHTML = `
@@ -903,14 +907,15 @@ function renderSubregionTable(subRegions, unit, multiplier) {
     tr.className = 'clickable';
     
     // Add dynamic category label styling
-    const catColor = getCategoryColor(sr.category);
+    const normCat = normalizeCategory(sr.category);
+    const catColor = getCategoryColor(normCat);
     
     tr.innerHTML = `
       <td><strong>${escapeHtml(sr.name)}</strong></td>
       <td>${sr.rainfall_mm ? sr.rainfall_mm.toFixed(1) : '0.0'}</td>
       <td>${formatMetricValue(resValue)}</td>
       <td>${formatMetricValue(extValue)}</td>
-      <td><span class="status-badge" style="background:${catColor}; color:${sr.category === 'Critical' ? '#0f172a' : '#fff'}; font-size: 0.68rem; padding: 1px 6px;">${sr.category || 'No Data'}</span></td>
+      <td><span class="status-badge" style="background:${catColor}; color:${normCat === 'Critical' ? '#0f172a' : '#fff'}; font-size: 0.68rem; padding: 1px 6px;">${normCat}</span></td>
     `;
 
     // Row click handler to drill down
