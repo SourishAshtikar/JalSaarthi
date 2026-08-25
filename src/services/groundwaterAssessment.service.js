@@ -13,7 +13,7 @@ async function getAssessments(year, scope) {
       SELECT ga.assessment_id, ga.village_id, v.name AS village_name,
              v.latitude, v.longitude, d.name AS district_name,
              ga.assessment_year, ga.is_predicted, ga.category,
-             ga.extractable_resources_bcm, ga.extraction_all_uses_bcm
+             ga.dtw_m_bgl, ga.extractable_resources_bcm, ga.extraction_all_uses_bcm
       FROM groundwater_assessments ga
       JOIN villages v ON ga.village_id = v.village_id
       JOIN districts d ON v.district_id = d.district_id
@@ -26,7 +26,7 @@ async function getAssessments(year, scope) {
     const sql = `
       SELECT ga.assessment_id, ga.district_id, d.name AS district_name,
              ga.assessment_year, ga.is_predicted, ga.category,
-             ga.extractable_resources_bcm, ga.extraction_all_uses_bcm
+             ga.dtw_m_bgl, ga.extractable_resources_bcm, ga.extraction_all_uses_bcm
       FROM groundwater_assessments ga
       JOIN districts d ON ga.district_id = d.district_id
       WHERE ga.assessment_year = $1 AND ga.village_id IS NULL

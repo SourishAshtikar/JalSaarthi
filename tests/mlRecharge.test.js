@@ -74,7 +74,7 @@ async function runTests() {
   assert(yearsRes.status === 200, 'Endpoint returned 200 OK');
   assert(yearsRes.body.status === 'SUCCESS', 'Response status is SUCCESS');
   assert(Array.isArray(yearsRes.body.data.years), 'Response data contains years array');
-  assert(yearsRes.body.data.years.includes('1995-1996'), 'Includes historical 1995-1996 data');
+  assert(yearsRes.body.data.years.includes('2023-2024'), 'Includes historical 2023-2024 data');
   assert(yearsRes.body.data.years.includes('2025-2026'), 'Includes predicted 2025-2026 data');
 
   // 2. Real DTW retrieved from database

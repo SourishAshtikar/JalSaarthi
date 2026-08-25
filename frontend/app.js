@@ -6,6 +6,16 @@ let selectedFarmId = null;
 let selectedFarmVillageId = null;
 let auditorGridData = [];
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ==========================================
 // CORE API & TOKEN UTILITIES
 // ==========================================
@@ -179,8 +189,37 @@ function showView(viewId) {
   }
 }
 
+let yearsLoaded = false;
+async function populateAssessmentYears() {
+  if (yearsLoaded) return;
+  const yearSelect = document.getElementById('gis-assessment-year');
+  if (!yearSelect) return;
+
+  const res = await apiRequest('GET', '/api/groundwater-assessments/years');
+  if (res.status === 200 && res.data?.data?.years) {
+    const rawYears = res.data.data.years;
+    // Sort descending: most recent first
+    const sortedYears = rawYears.slice().sort().reverse();
+    const currentVal = yearSelect.value || '2025-2026';
+
+    yearSelect.innerHTML = sortedYears.map(y => {
+      const startYear = parseInt(y.split('-')[0], 10);
+      const isPred = !isNaN(startYear) && startYear >= 2025;
+      const label = `${y} ${isPred ? '(Predicted)' : '(Historical)'}`;
+      return `<option value="${y}" ${y === currentVal ? 'selected' : ''}>${label}</option>`;
+    }).join('');
+
+    // Ensure a valid selection
+    if (!sortedYears.includes(currentVal) && sortedYears.length > 0) {
+      yearSelect.value = sortedYears[0];
+    }
+    yearsLoaded = true;
+  }
+}
+
 function handleLogout() {
   removeToken();
+  yearsLoaded = false; // Reset loaded flag to refetch on next login
   showView('view-login');
   document.getElementById('user-nav-status').style.display = 'none';
   updateApiBanner('LOCAL', 'logout', 200, { message: 'Logged out successfully.' });
@@ -201,48 +240,74 @@ let activeFocusScope = 'state';
 let activeFocusId = null;
 let districtLayers = {}; // Cache district layer references for programmatic focus
 let villageMarkers = {};  // Cache village marker references
+let cachedDistrictGeoJSON = null; // Cache the haryana_districts.geojson so we don't re-fetch unnecessarily
 
 function initLeafletMap(defaultLat = 29.15, defaultLng = 76.3, defaultZoom = 8) {
   const mapContainer = document.getElementById('groundwater-leaflet-map');
   if (!mapContainer) return null;
 
   if (leafletMap) {
-    leafletMap.invalidateSize();
+    try {
+      leafletMap.invalidateSize();
+    } catch { }
     return leafletMap;
   }
 
-  // Create Leaflet map centered on Haryana
-  leafletMap = L.map('groundwater-leaflet-map', {
-    center: [defaultLat, defaultLng],
-    zoom: defaultZoom,
-    zoomControl: true,
-    attributionControl: true
-  });
+  // Clear existing DOM leaflet ID if container element was recreated/reused
+  if (mapContainer._leaflet_id) {
+    mapContainer._leaflet_id = null;
+  }
 
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(leafletMap);
+  try {
+    // Create Leaflet map centered on Haryana
+    leafletMap = L.map('groundwater-leaflet-map', {
+      center: [defaultLat, defaultLng],
+      zoom: defaultZoom,
+      zoomControl: true,
+      attributionControl: true
+    });
 
-  pointsLayerGroup = L.layerGroup().addTo(leafletMap);
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
 
-  // Add Custom Legend Control on Bottom Right
-  const legend = L.control({ position: 'bottomright' });
-  legend.onAdd = function () {
-    const div = L.DomUtil.create('div', 'map-legend-box');
-    div.innerHTML = `
-      <div class="map-legend-title">Category</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#dbeafe;"></div>Safe</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#2563eb;"></div>Semi Critical</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>Critical</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#dc2626;"></div>Over Exploited</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#16a34a;"></div>Saline</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#e2e8f0;"></div>Hilly Area</div>
-      <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
-    `;
-    return div;
-  };
-  legend.addTo(leafletMap);
+    const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    });
+
+    // Default to Satellite view
+    satelliteLayer.addTo(leafletMap);
+
+    const baseMaps = {
+      "🛰️ Satellite": satelliteLayer,
+      "🗺️ Street Map": streetLayer
+    };
+
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(leafletMap);
+
+    pointsLayerGroup = L.layerGroup().addTo(leafletMap);
+
+    // Add Custom Legend Control on Bottom Right
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'map-legend-box');
+      div.innerHTML = `
+        <div class="map-legend-title">Category</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#dbeafe;"></div>Safe</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#2563eb;"></div>Semi Critical</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>Critical</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#dc2626;"></div>Over Exploited</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#e2e8f0;"></div>Hilly Area</div>
+        <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
+      `;
+      return div;
+    };
+    legend.addTo(leafletMap);
+  } catch (err) {
+    console.warn('Leaflet container initialization warning:', err);
+  }
 
   return leafletMap;
 }
@@ -253,9 +318,45 @@ function getCategoryColor(cat) {
     case 'Semi Critical': return '#2563eb';
     case 'Critical': return '#facc15';
     case 'Over Exploited': return '#dc2626';
-    case 'Saline': return '#16a34a';
     case 'Hilly Area': return '#e2e8f0';
     default: return '#64748b';
+  }
+}
+
+function getDTWColor(dtw) {
+  if (dtw === null || dtw === undefined || isNaN(dtw)) return '#64748b';
+  if (dtw < 5.0) return '#38bdf8';
+  if (dtw < 10.0) return '#4ade80';
+  if (dtw < 20.0) return '#facc15';
+  if (dtw < 40.0) return '#fb923c';
+  return '#f87171';
+}
+
+function updateMapLegend(mode) {
+  // Update the existing legend in the map bottom-right
+  const legendBox = document.querySelector('.map-legend-box');
+  if (!legendBox) return;
+
+  if (mode === 'dtw') {
+    legendBox.innerHTML = `
+      <div class="map-legend-title">Depth to Water (m bgl)</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#38bdf8;"></div>&lt; 5 m (Shallow)</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#4ade80;"></div>5 – 10 m</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>10 – 20 m</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#fb923c;"></div>20 – 40 m</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#f87171;"></div>&gt; 40 m (Deep)</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
+    `;
+  } else {
+    legendBox.innerHTML = `
+      <div class="map-legend-title">Category</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#dbeafe;"></div>Safe</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#2563eb;"></div>Semi Critical</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#facc15;"></div>Critical</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#dc2626;"></div>Over Exploited</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#e2e8f0;"></div>Hilly Area</div>
+      <div class="map-legend-item"><div class="map-legend-color" style="background:#64748b;"></div>No Data</div>
+    `;
   }
 }
 
@@ -265,9 +366,16 @@ async function loadGroundwaterHeatmap() {
   const errorMsg = document.getElementById('heatmap-error-msg');
   const yearSelect = document.getElementById('gis-assessment-year');
   const scopeSelect = document.getElementById('gis-map-scope');
+  const modeSelect = document.getElementById('gis-map-mode');
 
   if (yearSelect) currentYear = yearSelect.value;
   if (scopeSelect) currentScope = scopeSelect.value;
+  const currentMode = modeSelect ? modeSelect.value : 'category';
+
+  if (yearSelect && yearSelect.options.length <= 1) {
+    await populateAssessmentYears();
+    currentYear = yearSelect.value || currentYear;
+  }
 
   // Update floating map year badge
   const mapYearBadge = document.getElementById('map-year-badge');
@@ -276,20 +384,22 @@ async function loadGroundwaterHeatmap() {
   if (loadingOverlay) loadingOverlay.style.display = 'flex';
   if (errorOverlay) errorOverlay.style.display = 'none';
 
-  initLeafletMap();
+  try {
+    initLeafletMap();
+    updateMapLegend(currentMode);
 
-  const url = `/api/groundwater-assessments?year=${currentYear}&scope=${currentScope}`;
-  const res = await apiRequest('GET', url);
+    const url = `/api/groundwater-assessments?year=${currentYear}&scope=${currentScope}`;
+    const res = await apiRequest('GET', url);
 
-  if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
 
-  if (res.status === 200 && res.data?.data) {
+    if (res.status === 200 && res.data?.data) {
     cachedAssessments = res.data.data;
     districtLayers = {};
     villageMarkers = {};
 
-    // 1. Calculate and update summary counters
-    updateSummaryCounters(cachedAssessments);
+    // 1. Calculate and update summary counters based on current mode
+    updateSummaryCounters(cachedAssessments, currentMode);
 
     // 2. Clear old layers
     if (geoJsonLayer) {
@@ -301,13 +411,14 @@ async function loadGroundwaterHeatmap() {
     }
 
     // 3. Ensure District GeoJSON is loaded for boundary clipping
-    if (!cachedDistrictGeoJSON) {
-      try {
-        const geoResponse = await fetch('/haryana_districts.geojson');
-        cachedDistrictGeoJSON = await geoResponse.json();
-      } catch (err) {
-        console.error('Failed to fetch haryana_districts.geojson:', err);
-      }
+    try {
+      const geoResponse = await fetch('/haryana_districts.geojson');
+      if (!geoResponse.ok) throw new Error(`HTTP ${geoResponse.status}`);
+      cachedDistrictGeoJSON = await geoResponse.json();
+      console.log('[GIS] haryana_districts.geojson loaded, features:', cachedDistrictGeoJSON?.features?.length);
+    } catch (err) {
+      console.error('[GIS] Failed to fetch haryana_districts.geojson:', err);
+      cachedDistrictGeoJSON = null;
     }
 
     // 4. Render new layers based on scope
@@ -317,10 +428,12 @@ async function loadGroundwaterHeatmap() {
           style: function (feature) {
             const districtName = feature.properties.NAME_2;
             const match = cachedAssessments.find(a => a.district_name.toLowerCase() === districtName.toLowerCase());
-            const cat = match ? match.category : 'No Data';
+            const fillColor = (currentMode === 'dtw') 
+              ? getDTWColor(match ? match.dtw_m_bgl : null) 
+              : getCategoryColor(match ? match.category : 'No Data');
             return {
-              fillColor: getCategoryColor(cat),
-              fillOpacity: 0.75,
+              fillColor: fillColor,
+              fillOpacity: 0.78,
               color: '#475569',
               weight: 1.5,
               dashArray: '1'
@@ -330,15 +443,18 @@ async function loadGroundwaterHeatmap() {
             const districtName = feature.properties.NAME_2;
             const match = cachedAssessments.find(a => a.district_name.toLowerCase() === districtName.toLowerCase());
             const cat = match ? match.category : 'No Data';
+            const dtwVal = match && match.dtw_m_bgl != null ? `${match.dtw_m_bgl} m bgl` : 'N/A';
 
             if (match) {
               districtLayers[match.district_id] = layer;
             }
 
             layer.bindTooltip(`
-              <div style="font-size:0.8rem; line-height:1.3;">
+              <div style="font-size:0.82rem; line-height:1.3;">
                 <strong>${escapeHtml(districtName)}</strong> (District)<br>
-                Category: <span style="font-weight:bold;">${cat}</span>
+                ${currentMode === 'dtw' 
+                  ? `Water Depth: <span style="font-weight:bold; color:#0284c7;">${dtwVal}</span>` 
+                  : `Category: <span style="font-weight:bold;">${cat}</span>`}
               </div>
             `, { sticky: true });
 
@@ -347,14 +463,14 @@ async function loadGroundwaterHeatmap() {
                 this.setStyle({
                   weight: 3,
                   color: '#0f172a',
-                  fillOpacity: 0.85
+                  fillOpacity: 0.88
                 });
               },
               mouseout: function () {
                 this.setStyle({
                   weight: 1.5,
                   color: '#475569',
-                  fillOpacity: 0.75
+                  fillOpacity: 0.78
                 });
               },
               click: function (e) {
@@ -385,9 +501,11 @@ async function loadGroundwaterHeatmap() {
             if (!match) {
               match = cachedAssessments.find(a => a.district_name.toLowerCase().trim() === dName.toLowerCase());
             }
-            const cat = match ? match.category : 'Safe';
+            const fillColor = (currentMode === 'dtw') 
+              ? getDTWColor(match ? match.dtw_m_bgl : null) 
+              : getCategoryColor(match ? match.category : 'Safe');
             return {
-              fillColor: getCategoryColor(cat),
+              fillColor: fillColor,
               fillOpacity: 0.82,
               color: '#1e293b',
               weight: 0.8,
@@ -407,6 +525,7 @@ async function loadGroundwaterHeatmap() {
               match = cachedAssessments.find(a => a.district_name.toLowerCase().trim() === dName.toLowerCase().trim());
             }
             const cat = match ? match.category : 'Safe';
+            const dtwVal = match && match.dtw_m_bgl != null ? `${match.dtw_m_bgl} m bgl` : 'N/A';
 
             if (match) {
               villageMarkers[match.village_id] = layer;
@@ -417,7 +536,9 @@ async function loadGroundwaterHeatmap() {
                 <strong style="font-size:0.88rem;">${escapeHtml(vName)}</strong> (Survey of India Village Boundary)<br>
                 ${bName ? 'Block/Tehsil: ' + escapeHtml(bName) + '<br>' : ''}
                 District: ${escapeHtml(dName)}<br>
-                Groundwater Status: <span style="font-weight:bold; color:#0284c7;">${cat}</span>
+                ${currentMode === 'dtw' 
+                  ? `Water Depth: <span style="font-weight:bold; color:#0284c7;">${dtwVal}</span>` 
+                  : `Groundwater Status: <span style="font-weight:bold; color:#0284c7;">${cat}</span>`}
               </div>
             `, { sticky: true });
 
@@ -452,11 +573,26 @@ async function loadGroundwaterHeatmap() {
       inspectFocusArea(activeFocusScope, activeFocusId, currentYear);
     }
 
-  } else {
+    } else {
+      if (errorOverlay) {
+        errorOverlay.style.display = 'flex';
+        if (errorMsg) {
+          if (res.status === 401) {
+            errorMsg.textContent = 'Session expired or unauthenticated. Please log in to view GIS data.';
+          } else {
+            errorMsg.textContent = res.data?.message || 'Groundwater assessment service unreachable';
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[GIS] loadGroundwaterHeatmap error:', err);
     if (errorOverlay) {
       errorOverlay.style.display = 'flex';
-      if (errorMsg) errorMsg.textContent = res.data?.message || 'Groundwater assessment service unreachable';
+      if (errorMsg) errorMsg.textContent = `Error: ${err.message || 'Unknown error. Check browser console (F12).'}. Please log in or refresh.`;
     }
+  } finally {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
   }
 }
 
@@ -464,31 +600,50 @@ function refreshGroundwaterHeatmap() {
   loadGroundwaterHeatmap();
 }
 
-function updateSummaryCounters(assessments) {
-  let total = assessments.length;
-  let safe = 0, semi = 0, critical = 0, over = 0, saline = 0;
+function updateSummaryCounters(assessments, mode = 'category') {
+  const container = document.getElementById('gis-summary-items-container');
+  if (!container) return;
 
-  assessments.forEach(a => {
-    if (a.category === 'Safe') safe++;
-    else if (a.category === 'Semi Critical') semi++;
-    else if (a.category === 'Critical') critical++;
-    else if (a.category === 'Over Exploited') over++;
-    else if (a.category === 'Saline') saline++;
-  });
+  const total = assessments.length;
 
-  const totalEl = document.getElementById('summary-count-total');
-  const safeEl = document.getElementById('summary-count-safe');
-  const semiEl = document.getElementById('summary-count-semi');
-  const criticalEl = document.getElementById('summary-count-critical');
-  const overEl = document.getElementById('summary-count-over');
-  const salineEl = document.getElementById('summary-count-saline');
+  if (mode === 'dtw') {
+    let dtw0_5 = 0, dtw5_10 = 0, dtw10_20 = 0, dtw20_40 = 0, dtw40plus = 0;
+    assessments.forEach(a => {
+      const d = a.dtw_m_bgl;
+      if (d != null && !isNaN(d)) {
+        if (d < 5.0) dtw0_5++;
+        else if (d < 10.0) dtw5_10++;
+        else if (d < 20.0) dtw10_20++;
+        else if (d < 40.0) dtw20_40++;
+        else dtw40plus++;
+      }
+    });
 
-  if (totalEl) totalEl.textContent = total;
-  if (safeEl) safeEl.textContent = safe;
-  if (semiEl) semiEl.textContent = semi;
-  if (criticalEl) criticalEl.textContent = critical;
-  if (overEl) overEl.textContent = over;
-  if (salineEl) salineEl.textContent = saline;
+    container.innerHTML = `
+      <div class="gis-summary-item">Total: <span id="summary-count-total" class="gis-summary-val" style="background:#475569; color:#fff;">${total}</span></div>
+      <div class="gis-summary-item">&lt; 5m (Shallow): <span class="gis-summary-val" style="background:#0284c7; color:#fff;">${dtw0_5}</span></div>
+      <div class="gis-summary-item">5-10m (Moderate): <span class="gis-summary-val" style="background:#16a34a; color:#fff;">${dtw5_10}</span></div>
+      <div class="gis-summary-item">10-20m (Deep): <span class="gis-summary-val" style="background:#eab308; color:#0f172a;">${dtw10_20}</span></div>
+      <div class="gis-summary-item">20-40m (Very Deep): <span class="gis-summary-val" style="background:#ea580c; color:#fff;">${dtw20_40}</span></div>
+      <div class="gis-summary-item">&gt; 40m (Depleted): <span class="gis-summary-val" style="background:#dc2626; color:#fff;">${dtw40plus}</span></div>
+    `;
+  } else {
+    let safe = 0, semi = 0, critical = 0, over = 0;
+    assessments.forEach(a => {
+      if (a.category === 'Safe') safe++;
+      else if (a.category === 'Semi Critical') semi++;
+      else if (a.category === 'Critical') critical++;
+      else if (a.category === 'Over Exploited') over++;
+    });
+
+    container.innerHTML = `
+      <div class="gis-summary-item">Total: <span id="summary-count-total" class="gis-summary-val" style="background:#475569; color:#fff;">${total}</span></div>
+      <div class="gis-summary-item">Safe: <span id="summary-count-safe" class="gis-summary-val" style="background:#15803d; color:#fff;">${safe}</span></div>
+      <div class="gis-summary-item">Semi-Critical: <span id="summary-count-semi" class="gis-summary-val" style="background:#2563eb; color:#fff;">${semi}</span></div>
+      <div class="gis-summary-item">Critical: <span id="summary-count-critical" class="gis-summary-val" style="background:#eab308; color:#0f172a;">${critical}</span></div>
+      <div class="gis-summary-item">Over-Exploited: <span id="summary-count-over" class="gis-summary-val" style="background:#dc2626; color:#fff;">${over}</span></div>
+    `;
+  }
 }
 
 function toggleAccordion(id) {
@@ -636,8 +791,6 @@ function intersectLineAndHalfPlane(p1, p2, mid, nx, ny) {
   const t = den !== 0 ? num / den : 0;
   return [p1[0] + t * dx, p1[1] + t * dy];
 }
-
-let cachedDistrictGeoJSON = null;
 
 function computeVillageVoronoiPolygons(villages) {
   const validVillages = villages.filter(v => v.latitude && v.longitude);
@@ -1023,6 +1176,108 @@ async function runDirectRecommendation() {
   const currentPractice = document.getElementById('rec-sim-practice').value;
   const villageId = currentUser?.village_id || '070001';
   await requestAndRenderRecommendation(villageId, cropName, currentPractice);
+}
+
+let allGeographicLocations = [];
+
+async function initMLGeoAutoComplete() {
+  try {
+    const response = await fetch('/api/geography/villages');
+    if (!response.ok) return;
+    const json = await response.json();
+    if (json.status === 'SUCCESS' && Array.isArray(json.data)) {
+      allGeographicLocations = json.data;
+      
+      const districtsSet = new Set();
+      const tehsilsSet = new Set();
+      const stationsSet = new Set();
+
+      allGeographicLocations.forEach(loc => {
+        if (loc.district_name) districtsSet.add(loc.district_name);
+        if (loc.tehsil) tehsilsSet.add(loc.tehsil);
+        if (loc.name) stationsSet.add(loc.name);
+        if (loc.station_name) stationsSet.add(loc.station_name);
+      });
+
+      populateDatalist('ml-districts-list', Array.from(districtsSet).sort());
+      populateDatalist('ml-tehsils-list', Array.from(tehsilsSet).sort());
+      populateDatalist('ml-stations-list', Array.from(stationsSet).sort());
+    }
+  } catch (err) {
+    console.warn('[initMLGeoAutoComplete] Fetch failed:', err);
+  }
+}
+
+function populateDatalist(id, items) {
+  const list = document.getElementById(id);
+  if (!list) return;
+  list.innerHTML = items.map(item => `<option value="${escapeHtml(item)}"></option>`).join('');
+}
+
+function handleMLGeoAutoComplete(triggerField) {
+  if (!allGeographicLocations || allGeographicLocations.length === 0) return;
+
+  const districtInput = document.getElementById('ml-test-district');
+  const tehsilInput = document.getElementById('ml-test-tehsil');
+  const blockInput = document.getElementById('ml-test-block');
+  const stationInput = document.getElementById('ml-test-station');
+  const latInput = document.getElementById('ml-test-lat');
+  const lonInput = document.getElementById('ml-test-lon');
+
+  const distVal = districtInput ? districtInput.value.trim().toLowerCase() : '';
+  const tehsilVal = tehsilInput ? tehsilInput.value.trim().toLowerCase() : '';
+  const stationVal = stationInput ? stationInput.value.trim().toLowerCase() : '';
+
+  if (!distVal && !tehsilVal && !stationVal) return;
+
+  let match = null;
+
+  const isMatch = (loc, val, field) => {
+    if (!val) return false;
+    const target = (loc[field] || '').toLowerCase();
+    return target === val || target.startsWith(val);
+  };
+
+  if (triggerField === 'station' && stationVal) {
+    match = allGeographicLocations.find(l => isMatch(l, stationVal, 'name') || isMatch(l, stationVal, 'station_name'));
+  } else if (triggerField === 'tehsil' && tehsilVal) {
+    match = allGeographicLocations.find(l => isMatch(l, tehsilVal, 'tehsil'));
+  } else if (triggerField === 'district' && distVal) {
+    match = allGeographicLocations.find(l => isMatch(l, distVal, 'district_name'));
+  }
+
+  if (!match) {
+    match = allGeographicLocations.find(l => {
+      const d = (l.district_name || '').toLowerCase();
+      const t = (l.tehsil || '').toLowerCase();
+      const s = (l.station_name || l.name || '').toLowerCase();
+      if (stationVal && s.includes(stationVal)) return true;
+      if (tehsilVal && t.includes(tehsilVal)) return true;
+      if (distVal && d.includes(distVal)) return true;
+      return false;
+    });
+  }
+
+  if (match) {
+    if (match.district_name && districtInput && triggerField !== 'district') {
+      districtInput.value = match.district_name;
+    }
+    if (match.tehsil && tehsilInput && triggerField !== 'tehsil') {
+      tehsilInput.value = match.tehsil;
+    }
+    if (match.block && blockInput) {
+      blockInput.value = match.block;
+    }
+    if ((match.station_name || match.name) && stationInput && triggerField !== 'station') {
+      stationInput.value = match.station_name || match.name;
+    }
+    if (match.latitude !== undefined && match.latitude !== null && latInput) {
+      latInput.value = match.latitude;
+    }
+    if (match.longitude !== undefined && match.longitude !== null && lonInput) {
+      lonInput.value = match.longitude;
+    }
+  }
 }
 
 async function runMLPrediction() {
@@ -1542,39 +1797,9 @@ function escapeHtml(str) {
 // Auto-check session on DOM load
 window.addEventListener('DOMContentLoaded', () => {
   checkSessionAndRoute();
+  initMLGeoAutoComplete();
 });
 
-let yearsLoaded = false;
-async function populateAssessmentYears() {
-  if (yearsLoaded) return;
-  const yearSelect = document.getElementById('gis-assessment-year');
-  if (!yearSelect) return;
-  
-  const res = await apiRequest('GET', '/api/groundwater-assessments/years');
-  if (res.status === 200 && res.data?.data?.years) {
-    const years = res.data.data.years;
-    const currentVal = yearSelect.value || '2025-2026';
-    yearSelect.innerHTML = '';
-    
-    years.forEach(y => {
-      const opt = document.createElement('option');
-      opt.value = y;
-      const isPredicted = y === '2025-2026' || y === '2026-2027';
-      const labelSuffix = isPredicted ? ' (Predicted)' : ' (Historical)';
-      opt.textContent = `${y}${labelSuffix}`;
-      yearSelect.appendChild(opt);
-    });
-    
-    if (years.includes(currentVal)) {
-      yearSelect.value = currentVal;
-    } else if (years.includes('2025-2026')) {
-      yearSelect.value = '2025-2026';
-    } else if (years.length > 0) {
-      yearSelect.value = years[years.length - 1];
-    }
-    yearsLoaded = true;
-  }
-}
 
 function toggleMapFullscreen() {
   const wrapper = document.getElementById('gis-map-wrapper');

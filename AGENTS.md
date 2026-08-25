@@ -78,6 +78,22 @@ Audits (audit_id, record_id, auditor_id, actual_irrigation_method_id, adoption_s
 
 ## Change Log
 
+### 2026-08-25
+- **Task**: Database Migration & Connection Configuration to `.env` Supabase Database
+- **Files Changed**:
+  - `.env`
+  - `src/db/index.js`
+  - `scratch/migrate_and_seed_env_db.js`
+  - `AGENTS.md`
+- **Important Decisions & Architecture Notes**:
+  - **Supabase Cloud Migration**: Configured environment database connection details in `.env` (`aws-0-ap-south-1.pooler.supabase.com` session pooler on port 5432, user `postgres.kyvgcntvkojpsxjpbogk`).
+  - **SSL Support**: Updated `src/db/index.js` pool configuration to automatically enable SSL (`{ rejectUnauthorized: false }`) for non-localhost remote database hosts.
+  - **Database Migration & Seeding**: Created and executed `scratch/migrate_and_seed_env_db.js` to run all 13 SQL migrations and 4 SQL seed scripts (`geography`, `agricultural lookups`, `schemes`, and `groundwater assessments`) sequentially against the `.env` database.
+- **Verification Performed**:
+  - Tested database connection against `.env` Supabase cloud instance.
+  - Verified table creation and seed data insertion across all 12 tables (896 groundwater assessments, 425 villages, 22 districts, 5 schemes, 3 crops, 3 seasons, 3 irrigation methods, 1 state).
+  - Executed full test suite (`npm test`) against the cloud database, achieving 100% pass rate across all 111 integration tests.
+
 ### 2026-08-24
 - **Task**: Interactive Groundwater GIS Map & Collapsible detailed inspector
 - **Files Changed**:

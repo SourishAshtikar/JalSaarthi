@@ -3,19 +3,67 @@ const app = require('./app');
 const { testConnection } = require('./db');
 const { ensureDatabaseInitialized } = require('./db/autoMigrate');
 
+const net = require('net');
+const { spawn } = require('child_process');
+
 const PORT = process.env.PORT || 3000;
+let mlProcess = null;
+
+function startMLService() {
+  const tester = net.createServer()
+    .once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log('ℹ️ Python ML FastAPI service is already running on port 8000.');
+      } else {
+        console.error('⚠️ ML port check error:', err.message);
+      }
+    })
+    .once('listening', () => {
+      tester.close(() => {
+        console.log('🤖 Auto-starting Python ML FastAPI microservice on port 8000...');
+        mlProcess = spawn('python', ['-m', 'uvicorn', 'Model.api_intergate:app', '--host', '127.0.0.1', '--port', '8000'], {
+          stdio: 'ignore',
+          shell: true
+        });
+        mlProcess.on('error', (err) => {
+          console.error('⚠️ Could not start Python ML microservice automatically:', err.message);
+        });
+      });
+    })
+    .listen(8000, '127.0.0.1');
+}
 
 const startServer = async () => {
   try {
     await testConnection();
     await ensureDatabaseInitialized();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      startMLService();
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use by another process.`);
+        console.error(`💡 Solution: Stop the existing process running on port ${PORT} or kill it using: taskkill /F /PID <PID>`);
+      } else {
+        console.error('❌ Server startup error:', error.message);
+      }
+      process.exit(1);
     });
   } catch (error) {
     console.error('Server startup aborted due to database connection error:', error.message);
     process.exit(1);
   }
 };
+
+process.on('SIGINT', () => {
+  if (mlProcess) mlProcess.kill();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  if (mlProcess) mlProcess.kill();
+  process.exit(0);
+});
 
 startServer();

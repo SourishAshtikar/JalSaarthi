@@ -14,18 +14,20 @@ async function getDistricts(stateId = 1) {
 }
 
 async function getVillages(districtId) {
+  let queryText = `
+    SELECT v.village_id as id, v.name, v.district_id, d.name as district_name,
+           v.tehsil, v.block, v.station_name, v.latitude, v.longitude, v.lgd_code
+    FROM villages v
+    JOIN districts d ON v.district_id = d.district_id
+  `;
+  const params = [];
   if (districtId) {
-    const res = await pool.query(
-      'SELECT id, name, district_id, latitude, longitude, block_name, lgd_code FROM villages WHERE district_id = $1 ORDER BY name ASC',
-      [districtId]
-    );
-    return res.rows;
-  } else {
-    const res = await pool.query(
-      'SELECT id, name, district_id, latitude, longitude, block_name, lgd_code FROM villages ORDER BY name ASC LIMIT 100'
-    );
-    return res.rows;
+    queryText += ` WHERE v.district_id = $1`;
+    params.push(districtId);
   }
+  queryText += ` ORDER BY v.name ASC`;
+  const res = await pool.query(queryText, params);
+  return res.rows;
 }
 
 async function getVillageById(villageId) {

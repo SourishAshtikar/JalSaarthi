@@ -291,33 +291,36 @@
           <h4>🤖 Live AI Groundwater Prediction Test</h4>
           <span class="prototype-badge" style="background:#8b5cf6;">ML MICROSERVICE</span>
         </div>
-        <p class="text-muted">Test the Python FastAPI model connection via the Node.js backend.</p>
+        <p class="text-muted">Test the Python FastAPI model connection via the Node.js backend. Type a District, Tehsil, or Station to auto-complete coordinates and parameters.</p>
         <div class="form-row mt-10">
           <div class="form-group">
             <label>District:</label>
-            <input type="text" id="ml-test-district" value="Faridabad">
+            <input type="text" id="ml-test-district" value="Faridabad" list="ml-districts-list" oninput="handleMLGeoAutoComplete('district')" placeholder="Type or select District...">
+            <datalist id="ml-districts-list"></datalist>
           </div>
           <div class="form-group">
             <label>Tehsil:</label>
-            <input type="text" id="ml-test-tehsil" value="Ballabgarh">
+            <input type="text" id="ml-test-tehsil" value="Ballabgarh" list="ml-tehsils-list" oninput="handleMLGeoAutoComplete('tehsil')" placeholder="Type or select Tehsil...">
+            <datalist id="ml-tehsils-list"></datalist>
           </div>
           <div class="form-group">
             <label>Block:</label>
-            <input type="text" id="ml-test-block" value="BALLABGARH">
+            <input type="text" id="ml-test-block" value="BALLABGARH" placeholder="Block name">
           </div>
           <div class="form-group">
-            <label>Station:</label>
-            <input type="text" id="ml-test-station" value="Station1">
+            <label>Station / Village:</label>
+            <input type="text" id="ml-test-station" value="Station1" list="ml-stations-list" oninput="handleMLGeoAutoComplete('station')" placeholder="Type or select Station...">
+            <datalist id="ml-stations-list"></datalist>
           </div>
         </div>
         <div class="form-row mt-10">
           <div class="form-group">
             <label>Latitude:</label>
-            <input type="number" id="ml-test-lat" value="28.33">
+            <input type="number" id="ml-test-lat" value="28.33" step="0.0001">
           </div>
           <div class="form-group">
             <label>Longitude:</label>
-            <input type="number" id="ml-test-lon" value="77.31">
+            <input type="number" id="ml-test-lon" value="77.31" step="0.0001">
           </div>
           <div class="form-group">
             <label>Year:</label>
@@ -325,7 +328,7 @@
           </div>
           <div class="form-group">
             <label>Month:</label>
-            <input type="number" id="ml-test-month" value="8">
+            <input type="number" id="ml-test-month" value="8" min="1" max="12">
           </div>
         </div>
         <button onclick="runMLPrediction()" class="btn-primary" style="background:#7c3aed; margin-top: 15px;">Run Prediction</button>
@@ -450,7 +453,14 @@
             Compare historical (previous years) and predicted groundwater availability, categories, and recharge statistics across Haryana.
           </p>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="gis-map-mode" style="font-size: 0.8rem; font-weight: bold; color: #0284c7;">GIS Layer View:</label>
+            <select id="gis-map-mode" onchange="loadGroundwaterHeatmap()" style="width: auto; padding: 4px 8px; font-size: 0.8rem; border-color: #0284c7; font-weight: 600;">
+              <option value="category" selected>📊 Category & BCM Resources</option>
+              <option value="dtw">💧 Groundwater Level Depth (DTW meters bgl)</option>
+            </select>
+          </div>
           <div style="display: flex; align-items: center; gap: 6px;">
             <label for="gis-map-scope" style="font-size: 0.8rem; font-weight: bold; color: #475569;">Scope:</label>
             <select id="gis-map-scope" onchange="loadGroundwaterHeatmap()" style="width: auto; padding: 4px 8px; font-size: 0.8rem;">
@@ -471,12 +481,13 @@
       <!-- Top Summary Counter Bar -->
       <div id="gis-summary-bar" class="gis-summary-bar">
         <div style="font-weight: 600; color: #94a3b8; text-transform: uppercase; font-size: 0.72rem; border-right: 1px solid #334155; padding-right: 12px; margin-right: 4px;">Summary Counters</div>
-        <div class="gis-summary-item">Total: <span id="summary-count-total" class="gis-summary-val" style="background:#475569; color:#fff;">0</span></div>
-        <div class="gis-summary-item">Safe: <span id="summary-count-safe" class="gis-summary-val" style="background:#15803d; color:#fff;">0</span></div>
-        <div class="gis-summary-item">Semi-Critical: <span id="summary-count-semi" class="gis-summary-val" style="background:#2563eb; color:#fff;">0</span></div>
-        <div class="gis-summary-item">Critical: <span id="summary-count-critical" class="gis-summary-val" style="background:#eab308; color:#0f172a;">0</span></div>
-        <div class="gis-summary-item">Over-Exploited: <span id="summary-count-over" class="gis-summary-val" style="background:#dc2626; color:#fff;">0</span></div>
-        <div class="gis-summary-item">Saline: <span id="summary-count-saline" class="gis-summary-val" style="background:#0d9488; color:#fff;">0</span></div>
+        <div id="gis-summary-items-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <div class="gis-summary-item">Total: <span id="summary-count-total" class="gis-summary-val" style="background:#475569; color:#fff;">0</span></div>
+          <div class="gis-summary-item">Safe: <span id="summary-count-safe" class="gis-summary-val" style="background:#15803d; color:#fff;">0</span></div>
+          <div class="gis-summary-item">Semi-Critical: <span id="summary-count-semi" class="gis-summary-val" style="background:#2563eb; color:#fff;">0</span></div>
+          <div class="gis-summary-item">Critical: <span id="summary-count-critical" class="gis-summary-val" style="background:#eab308; color:#0f172a;">0</span></div>
+          <div class="gis-summary-item">Over-Exploited: <span id="summary-count-over" class="gis-summary-val" style="background:#dc2626; color:#fff;">0</span></div>
+        </div>
       </div>
 
       <!-- Map & Selected Point Inspector Grid -->
@@ -492,8 +503,11 @@
           </div>
           <div id="heatmap-error-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(254, 242, 242, 0.95); z-index: 10; color: #991b1b; padding: 20px; text-align: center;">
             <strong>Groundwater prediction data unavailable</strong>
-            <p id="heatmap-error-msg" style="font-size: 0.85rem; margin-top: 6px;">Could not connect to backend.</p>
-            <button onclick="loadGroundwaterHeatmap()" class="btn-small mt-10">Retry Connection</button>
+            <p id="heatmap-error-msg" style="font-size: 0.85rem; margin-top: 6px;">Please log in to access groundwater assessment GIS.</p>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button onclick="showView('view-login')" class="btn-small" style="background:#2563eb; color:#fff;">🔑 Log In</button>
+              <button onclick="loadGroundwaterHeatmap()" class="btn-small">🔄 Retry</button>
+            </div>
           </div>
         </div>
 

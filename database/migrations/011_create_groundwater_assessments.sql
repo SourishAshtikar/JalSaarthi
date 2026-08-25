@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS groundwater_assessments (
     rainfall_mm REAL,
     recharge_bcm REAL,
     natural_discharges_bcm REAL,
-    category TEXT CHECK (category IN ('Safe', 'Semi Critical', 'Critical', 'Over Exploited', 'Saline', 'Hilly Area', 'No Data')),
+    category TEXT CHECK (category IN ('Safe', 'Semi Critical', 'Critical', 'Over Exploited', 'Hilly Area', 'No Data')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_district_or_village CHECK (

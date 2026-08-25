@@ -6,6 +6,8 @@ from pydantic import BaseModel
 import sys
 import os
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from train_enhanced_model import EnhancedGroundwaterPreprocessor
 
 # Fix for pickling issue
@@ -191,3 +193,7 @@ def recommend_technique(request: RecommendationRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

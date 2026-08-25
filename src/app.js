@@ -9,6 +9,7 @@ const schemeRoutes = require('./routes/scheme.routes');
 const recommendationRoutes = require('./routes/recommendation.routes');
 const mlRoutes = require('./routes/ml.routes');
 const sustainabilityScoreRoutes = require('./routes/sustainabilityScore.routes');
+const geographyRoutes = require('./routes/geography.routes');
 const groundwaterHeatmapRoutes = require('./routes/groundwaterHeatmap.routes');
 const groundwaterAssessmentRoutes = require('./routes/groundwaterAssessment.routes');
 
@@ -22,6 +23,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/geography', geographyRoutes);
 app.use('/api', sustainabilityScoreRoutes);
 app.use('/api/groundwater', groundwaterHeatmapRoutes);
 app.use('/api/groundwater-assessments', groundwaterAssessmentRoutes);
