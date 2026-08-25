@@ -50,7 +50,7 @@ async function getAuditWithGeography(auditId) {
             a.audit_date, a.notes, a.created_at,
             u.name AS auditor_name,
             im.name AS actual_irrigation_method_name,
-            r.farm_id, r.season_id, r.crop_id, r.agricultural_year,
+            r.farm_id, r.season_id, r.crop_id, r.agricultural_year, r.cultivated_area_hectares,
             f.name AS farm_name, f.village_id,
             v.name AS village_name, v.district_id,
             d.name AS district_name
@@ -232,7 +232,7 @@ const getAudits = async (userId) => {
               im_curr.name AS current_irrigation_method_name,
               c.name AS crop_name,
               s.name AS season_name,
-              r.farm_id, r.agricultural_year,
+              r.farm_id, r.agricultural_year, r.cultivated_area_hectares,
               f.name AS farm_name, f.village_id,
               v.name AS village_name, v.district_id,
               d.name AS district_name
@@ -269,7 +269,7 @@ const getAudits = async (userId) => {
               im_curr.name AS current_irrigation_method_name,
               c.name AS crop_name,
               s.name AS season_name,
-              r.farm_id, r.agricultural_year,
+              r.farm_id, r.agricultural_year, r.cultivated_area_hectares,
               f.name AS farm_name, f.village_id,
               v.name AS village_name, v.district_id,
               d.name AS district_name

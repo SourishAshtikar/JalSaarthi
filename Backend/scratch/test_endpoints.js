@@ -44,6 +44,18 @@ server.listen(0, async () => {
       await check('/api/agriculture/crops', token);
       await check('/api/agriculture/irrigation-methods', token);
       await check('/api/reference/recommendation-options', token);
+
+      console.log('\n--- Testing AI Recommendation API with DB crop data ---');
+      const recRes = await fetch(`http://localhost:${port}/api/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          villageId: 1,
+          cropName: 'Paddy / Rice (धान / जीरी)',
+          currentPractice: 'Flood Irrigation (पारंपरिक बहाव)'
+        })
+      });
+      console.log('Recommendation result:', recRes.status, await recRes.json());
       await check('/api/groundwater-assessments/years', token);
       await check('/api/groundwater-assessments?year=2025-2026&scope=district', token);
       await check('/api/groundwater-assessments/details?scope=state&year=2025-2026', token);
