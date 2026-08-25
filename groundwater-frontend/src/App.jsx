@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import 'leaflet.heat'
-import AssessmentExplorer from './AssessmentExplorer.jsx'
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
 import { BadgeCheck, Bot, Building2, Droplets, Leaf, LogOut, Map, MapPin, Plus, ShieldCheck, Sparkles, Sprout, Waves, X } from 'lucide-react'
+
+// Code-split heavy Leaflet GIS map component on demand
+const AssessmentExplorer = lazy(() => import('./AssessmentExplorer.jsx'))
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 const TOKEN = 'groundwater_jwt'
+const USER_KEY = 'groundwater_user'
 const today = new Date().toISOString().slice(0, 10)
 
 function ApiError({ message, onDismiss }) {
@@ -39,8 +39,16 @@ function Status({ value }) {
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN))
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN)))
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem(USER_KEY)
+      return cached ? JSON.parse(cached) : null
+    } catch {
+      return null
+    }
+  })
+  // If token and cached user are present, render immediately (0ms blocking delay!)
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem(TOKEN) && !localStorage.getItem(USER_KEY)))
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
 
@@ -54,16 +62,53 @@ export default function App() {
     return payload
   }
 
+  // Background token verification & session refresh (SWR)
   useEffect(() => {
-    if (!token) { setLoading(false); return }
-    request('/api/auth/me').then(({ data }) => setUser(data.user)).catch(() => { localStorage.removeItem(TOKEN); setToken(null) }).finally(() => setLoading(false))
+    if (!token) {
+      setLoading(false)
+      setUser(null)
+      return
+    }
+
+    request('/api/auth/me')
+      .then(({ data }) => {
+        if (data?.user) {
+          setUser(data.user)
+          localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN)
+        localStorage.removeItem(USER_KEY)
+        setToken(null)
+        setUser(null)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [token])
 
-  function signOut() { localStorage.removeItem(TOKEN); setToken(null); setUser(null) }
-  function notify(message) { setToast(message); window.setTimeout(() => setToast(''), 3600) }
+  function signOut() {
+    localStorage.removeItem(TOKEN)
+    localStorage.removeItem(USER_KEY)
+    setToken(null)
+    setUser(null)
+  }
+
+  function handleLoginSuccess(nextToken, nextUser) {
+    localStorage.setItem(TOKEN, nextToken)
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser))
+    setToken(nextToken)
+    setUser(nextUser)
+  }
+
+  function notify(message) {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 3600)
+  }
 
   if (loading) return <main className="centered">Loading secure session…</main>
-  if (!user) return <Login onSuccess={(nextToken, nextUser) => { localStorage.setItem(TOKEN, nextToken); setToken(nextToken); setUser(nextUser) }} />
+  if (!user) return <Login onSuccess={handleLoginSuccess} />
   return <Shell user={user} onLogout={signOut} notify={notify} request={request} error={error} setError={setError} toast={toast} />
 }
 
@@ -168,19 +213,25 @@ function Shell({ user, onLogout, notify, request, error, setError, toast }) {
           ) : activeTab === 'ml' ? (
             <PredictionTest request={request} setError={setError} />
           ) : (
-            <AssessmentExplorer request={request} setError={setError} />
+            <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
+              <AssessmentExplorer request={request} setError={setError} />
+            </Suspense>
           )
         ) : user.role === 'AUDITOR' ? (
           activeTab === 'verification' ? (
             <AuditorContent request={request} notify={notify} setError={setError} />
           ) : (
-            <AssessmentExplorer request={request} setError={setError} />
+            <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
+              <AssessmentExplorer request={request} setError={setError} />
+            </Suspense>
           )
         ) : user.role === 'VILLAGE_HEAD' ? (
           activeTab === 'farms' ? (
             <VillageHeadContent request={request} notify={notify} setError={setError} user={user} />
           ) : (
-            <AssessmentExplorer request={request} setError={setError} />
+            <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
+              <AssessmentExplorer request={request} setError={setError} />
+            </Suspense>
           )
         ) : (
           <section className="empty">
