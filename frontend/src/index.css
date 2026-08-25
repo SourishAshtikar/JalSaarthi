@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #eef2ea;
+  --panel: #ffffff;
+  --panel-border: #dde4d6;
+  --ink: #1f2a20;
+  --ink-muted: #62705f;
+  --ink-faint: #94a091;
+
+  --cane: #2f6b45;
+  --cane-dark: #244f34;
+  --cane-tint: #e4efe3;
+
+  --clay: #b5652b;
+  --clay-tint: #f6e8dc;
+
+  --sky: #2c7da0;
+  --sky-tint: #e2eef3;
+
+  --amber: #c98a1f;
+  --amber-tint: #f8ecd4;
+
+  --danger: #b5432f;
+  --danger-tint: #f7e3de;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(31, 42, 32, 0.04), 0 8px 24px -12px rgba(31, 42, 32, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--cane-tint);
+  color: var(--cane-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

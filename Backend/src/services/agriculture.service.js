@@ -1,34 +1,27 @@
-const pool = require('../db');
+const { query } = require('../db');
 const cropMetadataConfig = require('../config/cropMetadata.json');
 
 async function getSeasons() {
-  const res = await pool.query('SELECT id, name, code FROM seasons ORDER BY id ASC');
+  const res = await query('SELECT season_id AS id, name FROM seasons ORDER BY season_id ASC');
   return res.rows;
 }
 
 async function getSeasonById(seasonId) {
-  const res = await pool.query('SELECT id, name, code FROM seasons WHERE id = $1', [seasonId]);
+  const res = await query('SELECT season_id AS id, name FROM seasons WHERE season_id = $1', [seasonId]);
   return res.rows[0] || null;
 }
 
 async function getCrops(seasonId) {
-  if (seasonId) {
-    const res = await pool.query(
-      'SELECT id, name, water_requirement_class, season_id FROM crops WHERE season_id = $1 ORDER BY name ASC',
-      [seasonId]
-    );
-    return res.rows;
-  } else {
-    const res = await pool.query(
-      'SELECT id, name, water_requirement_class, season_id FROM crops ORDER BY name ASC'
-    );
-    return res.rows;
-  }
+  // The current schema does not associate a crop with one season. Keep the
+  // optional parameter API-compatible while returning the shared catalogue.
+  void seasonId;
+  const res = await query('SELECT crop_id AS id, name, water_requirement AS water_requirement_class FROM crops ORDER BY name ASC');
+  return res.rows;
 }
 
 async function getCropById(cropId) {
-  const res = await pool.query(
-    'SELECT id, name, water_requirement_class, season_id FROM crops WHERE id = $1',
+  const res = await query(
+    'SELECT crop_id AS id, name, water_requirement AS water_requirement_class FROM crops WHERE crop_id = $1',
     [cropId]
   );
 
@@ -41,7 +34,7 @@ async function getCropById(cropId) {
     id: row.id,
     name: row.name,
     waterRequirementClass: row.water_requirement_class || meta.waterRequirementClass || 'High',
-    seasonId: row.season_id,
+    seasonId: null,
     suitableIrrigationPractices: meta.suitableIrrigationPractices || [2, 3],
     unsuitableIrrigationPractices: meta.unsuitableIrrigationPractices || [1],
     criticalIrrigationStages: meta.criticalIrrigationStages || []
@@ -49,12 +42,12 @@ async function getCropById(cropId) {
 }
 
 async function getIrrigationMethods() {
-  const res = await pool.query('SELECT id, name FROM irrigation_methods ORDER BY id ASC');
+  const res = await query('SELECT method_id AS id, name FROM irrigation_methods ORDER BY method_id ASC');
   return res.rows;
 }
 
 async function getIrrigationMethodById(methodId) {
-  const res = await pool.query('SELECT id, name FROM irrigation_methods WHERE id = $1', [methodId]);
+  const res = await query('SELECT method_id AS id, name FROM irrigation_methods WHERE method_id = $1', [methodId]);
   return res.rows[0] || null;
 }
 
