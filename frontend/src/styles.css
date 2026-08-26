@@ -40,11 +40,11 @@
   --blue-border: #c5dbe7;
 
   /* Sidebar Tokens */
-  --sidebar-bg: #222d17;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-text: #eaeedf;
-  --sidebar-muted: #9eae8d;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-bg: #43552d;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-text: #ffffff;
+  --sidebar-muted: rgba(255, 255, 255, 0.82);
+  --sidebar-hover: rgba(255, 255, 255, 0.1);
 
   /* Enterprise Precision Radii */
   --radius-xs: 2px;
