@@ -17,7 +17,7 @@ async function assignGeographies() {
     await query(`
       UPDATE users 
       SET district_id = 1 
-      WHERE email = 'test_auditor@example.com'
+      WHERE email = 'test_auditor@ezxample.com'
     `);
     console.log("✅ Assigned Auditor to District: Karnal");
 

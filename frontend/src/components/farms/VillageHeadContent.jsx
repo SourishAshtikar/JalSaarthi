@@ -128,8 +128,8 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
         <Metric icon={<BadgeCheck />} label="Verified adopted" value={selectedAudits.filter(a => a.adoption_status === 'ADOPTED').length} />
       </section>
 
-      <section className="toolbar">
-        <div>
+      <div className="farm-workspace-row">
+        <section className="farm-selector-col">
           <label>
             Selected farm
             <select value={selected?.farm_id || ''} onChange={e => setSelected(farms.find(f => f.farm_id === Number(e.target.value)))}>
@@ -137,14 +137,14 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
               {farms.map(f => <option key={f.farm_id} value={f.farm_id}>{f.name}</option>)}
             </select>
           </label>
-        </div>
-        <button className="button ghost" onClick={() => setModal('farm')}><Plus />Add farm</button>
-      </section>
+          <button className="button ghost" onClick={() => setModal('farm')} style={{ width: 'max-content' }}>
+            <Plus />Add farm
+          </button>
+        </section>
 
-      {selected ? (
-        <>
-          <section className="panel">
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
+        {selected ? (
+          <section className="farm-details-col">
+            <div className="farm-details-header">
               <div>
                 <p className="eyebrow">Farm details</p>
                 <h2>{selected.name}</h2>
@@ -152,15 +152,23 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
                   Owner: {selected.owner_name || 'Not recorded'} · {selected.village_name || user.village_name}
                 </p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+              <div className="farm-details-actions">
                 <span className="area">{selected.total_land_area_hectares} ha</span>
                 <button className="button primary small" onClick={() => setModal('record')}>
                   <Plus /> Add seasonal record
                 </button>
               </div>
-            </header>
+            </div>
           </section>
+        ) : (
+          <div className="farm-details-col" style={{ padding: '8px 0' }}>
+            <p className="muted">Select a farm to view its details.</p>
+          </div>
+        )}
+      </div>
 
+      {selected ? (
+        <>
           <DataTable
             headers={['Season', 'Crop', 'Year', 'Area', 'Current irrigation', 'Audit Status', 'AI Advisory']}
             rows={records.map(r => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
-import { Award, BadgeCheck, Bot, Building2, Droplets, Leaf, LogOut, Map, MapPin, ShieldCheck, Sparkles } from 'lucide-react'
+import { Award, BadgeCheck, Bot, Building2, Droplets, Leaf, LogOut, Map, MapPin, ShieldCheck } from 'lucide-react'
 import { ApiError } from '../common/CommonUI'
 import VillageHeadContent from '../farms/VillageHeadContent'
 import GeneralRecommendationWorkspace from '../advisory/GeneralRecommendationWorkspace'
@@ -12,7 +12,7 @@ import PredictionTest from '../prediction/PredictionTest'
 // Code-split heavy Leaflet GIS map component on demand
 const AssessmentExplorer = lazy(() => import('../../AssessmentExplorer.jsx'))
 
-export default function Shell({ user, onLogout, notify, request, error, setError, toast }) {
+export default function Shell({ user, initialTab, onLogout, onGoToLanding, notify, request, error, setError, toast }) {
   const roleLabel = user.role.replaceAll('_', ' ')
 
   // Define tab navigation per user role
@@ -27,26 +27,33 @@ export default function Shell({ user, onLogout, notify, request, error, setError
     }
     if (user.role === 'AUDITOR') {
       return [
-        { id: 'verification', label: 'Field Verification', icon: <Building2 /> },
+        { id: 'verification', label: 'Audit Field Logs', icon: <ShieldCheck /> },
         { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
       ]
     }
-    if (user.role === 'VILLAGE_HEAD') {
+    if (user.role === 'GOVERNMENT_EMPLOYEE') {
       return [
-        { id: 'farms', label: 'Farm Workspace', icon: <Building2 /> },
-        { id: 'recommendations', label: 'AI Advisory', icon: <Sparkles /> },
-        { id: 'schemes', label: 'Government Schemes', icon: <Leaf /> },
+        { id: 'schemes', label: 'Govt Schemes', icon: <Building2 /> },
         { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
       ]
     }
+    // VILLAGE_HEAD & fallback
     return [
+      { id: 'farms', label: 'Farm Register', icon: <Leaf /> },
+      { id: 'recommendations', label: 'Irrigation Advisory', icon: <Droplets /> },
+      { id: 'schemes', label: 'Subsidies & Schemes', icon: <BadgeCheck /> },
       { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
     ]
   }, [user.role])
 
-  const [activeTab, setActiveTab] = useState(() => tabs[0]?.id || 'workspace')
+  const [activeTab, setActiveTab] = useState(() => (initialTab && tabs.some(t => t.id === initialTab)) ? initialTab : (tabs[0]?.id || 'farms'))
 
-  // Keep active tab valid if role changes
+  useEffect(() => {
+    if (initialTab && tabs.some(t => t.id === initialTab)) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab, tabs])
+
   useEffect(() => {
     if (tabs.length && !tabs.some(t => t.id === activeTab)) {
       setActiveTab(tabs[0].id)
@@ -58,10 +65,15 @@ export default function Shell({ user, onLogout, notify, request, error, setError
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
+        <div
+          className="brand"
+          onClick={onGoToLanding}
+          style={{ cursor: 'pointer' }}
+          title="Return to JalSaarthi Landing Page"
+        >
           <span className="brand-mark"><Droplets /></span>
           <div>
-            <strong>JalDrishti</strong>
+            <strong>JalSaarthi</strong>
             <small>Groundwater Platform</small>
           </div>
         </div>
@@ -100,8 +112,8 @@ export default function Shell({ user, onLogout, notify, request, error, setError
               {user.village_name
                 ? `Assigned village · ${user.village_name}`
                 : user.district_name
-                ? `Assigned district · ${user.district_name}`
-                : `Platform administration · ${activeTabMeta?.label || ''}`}
+                  ? `Assigned district · ${user.district_name}`
+                  : `Platform administration · ${activeTabMeta?.label || ''}`}
             </p>
             <h1>Welcome, {user.name}</h1>
           </div>
@@ -130,7 +142,7 @@ export default function Shell({ user, onLogout, notify, request, error, setError
               <AssessmentExplorer request={request} setError={setError} />
             </Suspense>
           )
-        ) : user.role === 'VILLAGE_HEAD' ? (
+        ) : user.role === 'VILLAGE_HEAD' || user.role === 'GOVERNMENT_EMPLOYEE' ? (
           activeTab === 'farms' ? (
             <VillageHeadContent request={request} notify={notify} setError={setError} user={user} />
           ) : activeTab === 'recommendations' ? (
@@ -146,7 +158,7 @@ export default function Shell({ user, onLogout, notify, request, error, setError
           <section className="empty">
             <Leaf />
             <h2>No workspace is assigned to this role</h2>
-            <p>The account is authenticated, but this demo currently supports Village Head, Auditor, and Admin workspaces.</p>
+            <p>The account is authenticated, but this demo currently supports Village Head, Auditor, Government Employee, and Admin workspaces.</p>
           </section>
         )}
       </div>
