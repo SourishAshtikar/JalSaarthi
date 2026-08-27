@@ -15,6 +15,7 @@ const groundwaterHeatmapRoutes = require('./routes/groundwaterHeatmap.routes');
 const groundwaterAssessmentRoutes = require('./routes/groundwaterAssessment.routes');
 const agricultureRoutes = require('./routes/agriculture.routes');
 const referenceRoutes = require('./routes/reference.routes');
+const userRoutes = require('./routes/user.routes');
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/farms', farmRoutes);
 app.use('/api/audits', auditRoutes);
 app.use('/api/schemes', schemeRoutes);
 app.use('/api/ml', mlRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api', sustainabilityScoreRoutes);
 app.use('/api', cropRecordRoutes);
 app.use('/api', recommendationRoutes);

@@ -54,6 +54,28 @@ async function ensureDatabaseInitialized() {
       }
       console.log('✅ Database initialization and test seed complete.');
     }
+
+    const checkTokensTable = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'registration_tokens'
+      )
+    `);
+
+    if (!checkTokensTable.rows[0].exists) {
+      console.log('⚡ Creating registration_tokens table...');
+      await query(`
+        CREATE TABLE IF NOT EXISTS registration_tokens (
+          id SERIAL PRIMARY KEY,
+          token VARCHAR(255) NOT NULL UNIQUE,
+          role VARCHAR(50) NOT NULL CHECK (role IN ('VILLAGE_HEAD', 'AUDITOR', 'GOVERNMENT_EMPLOYEE', 'ADMIN')),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          is_used BOOLEAN DEFAULT FALSE NOT NULL,
+          used_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+        )
+      `);
+      console.log('✅ registration_tokens table created successfully.');
+    }
   } catch (error) {
     console.warn('⚠️ Auto-migration check warning:', error.message);
   }

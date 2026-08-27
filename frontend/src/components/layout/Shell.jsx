@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
-import { Award, BadgeCheck, Bot, Building2, Droplets, Leaf, LogOut, Map, MapPin, ShieldCheck } from 'lucide-react'
+import { Award, BadgeCheck, Bot, Building2, Droplets, LayoutDashboard, Leaf, LogOut, Map, MapPin, ShieldCheck, Users } from 'lucide-react'
 import { ApiError } from '../common/CommonUI'
 import VillageHeadContent from '../farms/VillageHeadContent'
 import GeneralRecommendationWorkspace from '../advisory/GeneralRecommendationWorkspace'
@@ -8,6 +8,8 @@ import AdminContent from '../schemes/AdminContent'
 import SustainabilityRankingTable from '../admin/SustainabilityRankingTable'
 import AuditorContent from '../audits/AuditorContent'
 import PredictionTest from '../prediction/PredictionTest'
+import UserManagementContent from '../admin/UserManagementContent'
+import AdminDashboardContent from '../admin/AdminDashboardContent'
 
 // Code-split heavy Leaflet GIS map component on demand
 const AssessmentExplorer = lazy(() => import('../../AssessmentExplorer.jsx'))
@@ -19,9 +21,11 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
   const tabs = useMemo(() => {
     if (user.role === 'ADMIN') {
       return [
+        { id: 'dashboard', label: 'Admin Dashboard', icon: <LayoutDashboard /> },
         { id: 'schemes', label: 'Scheme Catalogue', icon: <Building2 /> },
         { id: 'scores', label: 'Sustainability Scores', icon: <Award /> },
         { id: 'ml', label: 'ML Microservice', icon: <Bot /> },
+        { id: 'users', label: 'User Assignments', icon: <Users /> },
         { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
       ]
     }
@@ -109,7 +113,11 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
         <ApiError message={error} onDismiss={() => setError('')} />
 
         {user.role === 'ADMIN' ? (
-          activeTab === 'schemes' ? (
+          activeTab === 'dashboard' ? (
+            <AdminDashboardContent request={request} setError={setError} />
+          ) : activeTab === 'users' ? (
+            <UserManagementContent request={request} notify={notify} setError={setError} />
+          ) : activeTab === 'schemes' ? (
             <AdminContent request={request} notify={notify} setError={setError} />
           ) : activeTab === 'scores' ? (
             <SustainabilityRankingTable request={request} setError={setError} />
@@ -144,7 +152,7 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
           <section className="empty">
             <Leaf />
             <h2>No workspace is assigned to this role</h2>
-            <p>The account is authenticated, but this demo currently supports Village Head, Auditor, Government Employee, and Admin workspaces.</p>
+            <p>The account is authenticated, but this demo currently supports Sarpanch, Auditor, Government Employee, and Admin workspaces.</p>
           </section>
         )}
       </div>

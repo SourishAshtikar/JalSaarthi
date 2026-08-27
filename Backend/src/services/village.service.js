@@ -1,13 +1,13 @@
 const pool = require('../db');
 
 async function getStates() {
-  const res = await pool.query('SELECT id, name, code FROM states ORDER BY name ASC');
+  const res = await pool.query('SELECT state_id AS id, name FROM states ORDER BY name ASC');
   return res.rows;
 }
 
 async function getDistricts(stateId = 1) {
   const res = await pool.query(
-    'SELECT id, name, code, state_id FROM districts WHERE state_id = $1 ORDER BY name ASC',
+    'SELECT district_id AS id, name, state_id FROM districts WHERE state_id = $1 ORDER BY name ASC',
     [stateId]
   );
   return res.rows;
