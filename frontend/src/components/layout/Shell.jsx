@@ -106,20 +106,6 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
       </aside>
 
       <div className="content">
-        <header className="top-header">
-          <div>
-            <p className="eyebrow">
-              {user.village_name
-                ? `Assigned village · ${user.village_name}`
-                : user.district_name
-                  ? `Assigned district · ${user.district_name}`
-                  : `Platform administration · ${activeTabMeta?.label || ''}`}
-            </p>
-            <h1>Welcome, {user.name}</h1>
-          </div>
-          <div className="profile"><BadgeCheck /> {roleLabel}</div>
-        </header>
-
         <ApiError message={error} onDismiss={() => setError('')} />
 
         {user.role === 'ADMIN' ? (

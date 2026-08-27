@@ -129,22 +129,26 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
       </section>
 
       <div className="farm-workspace-row">
-        <section className="farm-selector-col">
-          <label>
-            Selected farm
-            <select value={selected?.farm_id || ''} onChange={e => setSelected(farms.find(f => f.farm_id === Number(e.target.value)))}>
-              <option value="">Select a farm</option>
-              {farms.map(f => <option key={f.farm_id} value={f.farm_id}>{f.name}</option>)}
-            </select>
-          </label>
-          <button className="button ghost" onClick={() => setModal('farm')} style={{ width: 'max-content' }}>
-            <Plus />Add farm
-          </button>
+        <section className="farm-card">
+          <div className="farm-card-body">
+            <label>
+              Selected farm
+              <select value={selected?.farm_id || ''} onChange={e => setSelected(farms.find(f => f.farm_id === Number(e.target.value)))}>
+                <option value="">Select a farm</option>
+                {farms.map(f => <option key={f.farm_id} value={f.farm_id}>{f.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="farm-card-footer">
+            <button className="button ghost small" onClick={() => setModal('farm')} style={{ width: 'max-content' }}>
+              <Plus />Add farm
+            </button>
+          </div>
         </section>
 
         {selected ? (
-          <section className="farm-details-col">
-            <div className="farm-details-header">
+          <section className="farm-card">
+            <div className="farm-card-header">
               <div>
                 <p className="eyebrow">Farm details</p>
                 <h2>{selected.name}</h2>
@@ -152,18 +156,19 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
                   Owner: {selected.owner_name || 'Not recorded'} · {selected.village_name || user.village_name}
                 </p>
               </div>
-              <div className="farm-details-actions">
-                <span className="area">{selected.total_land_area_hectares} ha</span>
-                <button className="button primary small" onClick={() => setModal('record')}>
-                  <Plus /> Add seasonal record
-                </button>
-              </div>
+              <span className="area">{selected.total_land_area_hectares} ha</span>
+            </div>
+            <div className="farm-card-footer">
+              <button className="button primary small" onClick={() => setModal('record')}>
+                <Plus /> Add seasonal record
+              </button>
             </div>
           </section>
         ) : (
-          <div className="farm-details-col" style={{ padding: '8px 0' }}>
-            <p className="muted">Select a farm to view its details.</p>
-          </div>
+          <section className="farm-card" style={{ justifyContent: 'center' }}>
+            <p className="eyebrow">Farm details</p>
+            <p className="muted" style={{ margin: '4px 0 0' }}>Select a farm to view its details.</p>
+          </section>
         )}
       </div>
 

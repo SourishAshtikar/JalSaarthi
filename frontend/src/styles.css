@@ -590,134 +590,111 @@ textarea:focus {
   box-sizing: border-box;
 }
 
-.top-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
 
-.top-header h1 {
-  margin: 0;
-  font-size: 1.85rem;
-  line-height: 1.18;
-}
-
-.profile {
-  border: 1px solid var(--border);
-  background: transparent;
-  border-radius: var(--radius);
-  padding: 5px 11px;
-  font-size: 0.72rem;
-  color: var(--green-dark);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.profile svg {
-  color: var(--green);
-  width: 14px;
-  height: 14px;
-}
-
-/* ==================== Compact Summary Strip ==================== */
+/* ==================== Summary & Metric Cards ==================== */
 .summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0;
-  margin-bottom: 30px;
-  min-height: 44px;
-  padding: 0;
-  background: transparent;
-  border: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .metric {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 4px 22px 4px 0;
-  margin-right: 22px;
-  border-right: 1px solid var(--border);
-  display: inline-flex;
-  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  gap: 14px;
   align-items: center;
+  box-shadow: var(--shadow);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.metric:last-child {
-  border-right: 0;
-  padding-right: 0;
-  margin-right: 0;
+.metric:hover {
+  transform: translateY(-2px);
+  border-color: var(--green-border);
+  box-shadow: 0 4px 14px -2px rgba(28, 37, 21, 0.08);
 }
 
-.metric>span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  height: auto;
-  border-radius: 0;
-  background: transparent;
+.metric > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--green-pale);
   color: var(--green);
-  border: 0;
   flex-shrink: 0;
 }
 
 .metric svg {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
 }
 
 .metric div {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .metric small {
-  display: inline;
+  display: block;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .metric strong {
-  display: inline;
+  display: block;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 1.08rem;
+  font-size: 1.45rem;
   margin: 0;
   color: var(--ink);
-  line-height: 1;
+  line-height: 1.1;
   font-weight: 700;
 }
 
-/* ==================== Two-Column Farm Workspace Row ==================== */
+/* ==================== Side-by-Side Farm Cards ==================== */
 .farm-workspace-row {
   display: grid;
-  grid-template-columns: minmax(280px, 0.38fr) minmax(420px, 0.62fr);
-  gap: 48px;
-  align-items: start;
-  margin-bottom: 30px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 24px;
 }
 
-.farm-selector-col {
+.farm-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 14px;
+  box-sizing: border-box;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.farm-selector-col label {
+.farm-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--green-border);
+  box-shadow: 0 4px 14px -2px rgba(28, 37, 21, 0.08);
+}
+
+.farm-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.farm-card-body label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -726,38 +703,31 @@ textarea:focus {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--green);
-}
-
-.farm-selector-col select {
   width: 100%;
-  max-width: 320px;
 }
 
-.farm-details-col {
+.farm-card-body select {
+  width: 100%;
+}
+
+.farm-card-header {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.farm-details-header {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 48px;
-}
-
-.farm-details-header h2 {
-  margin: 0 0 3px;
+.farm-card-header h2 {
+  margin: 2px 0 0;
   font-size: 1.35rem;
   line-height: 1.2;
 }
 
-.farm-details-actions {
+.farm-card-footer {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
 }
 
 /* ==================== Seamless Workspace Panels & Toolbars ==================== */
@@ -937,6 +907,13 @@ td small {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.scheme-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--green-border);
+  box-shadow: 0 4px 14px -2px rgba(28, 37, 21, 0.08);
 }
 
 .scheme-card h3 {
@@ -1084,38 +1061,16 @@ td small {
     padding: 20px 16px;
   }
 
-  .top-header {
-    align-items: flex-start;
-  }
-
-  .top-header h1 {
-    font-size: 1.5rem;
-  }
-
-  .profile {
-    display: none;
-  }
 
   .summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
     margin-bottom: 20px;
-  }
-
-  .metric {
-    border-right: 0;
-    padding-right: 0;
-    margin-right: 0;
   }
 
   .farm-workspace-row {
     grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .farm-selector-col select {
-    max-width: 100%;
+    gap: 14px;
   }
 
   .toolbar {
