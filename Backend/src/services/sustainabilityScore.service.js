@@ -85,23 +85,18 @@ async function calculateAndPersistScore(farmId, seasonId, agriculturalYear) {
   }
 
   // --- Component 2: Continued Historical Adoption (0 to 30 pts) ---
-  // Evaluates continuity across all historical audited seasonal records for the entire farm
+  // Evaluates continuity based on cumulative volume of verified adoptions to reward experience
   let continuedAdoptionScore = 0;
   const historyRes = await query(`
-    SELECT r.record_id, r.season_id, r.agricultural_year, a.adoption_status
+    SELECT r.record_id
     FROM farm_crop_records r
     JOIN audits a ON r.record_id = a.record_id
-    WHERE r.farm_id = $1 AND a.adoption_status IN ('ADOPTED', 'NOT_ADOPTED')
+    WHERE r.farm_id = $1 AND a.adoption_status = 'ADOPTED'
   `, [parsedFarmId]);
 
-  const auditedSeasons = historyRes.rows;
-  if (auditedSeasons.length > 0) {
-    const adoptedCount = auditedSeasons.filter(h => h.adoption_status === 'ADOPTED').length;
-    continuedAdoptionScore = Math.round((adoptedCount / auditedSeasons.length) * 30);
-  } else if (adoptionScore === 50) {
-    // First-time verified adopter baseline rule
-    continuedAdoptionScore = 30;
-  }
+  const adoptedCount = historyRes.rows.length;
+  // Each verified adopted season yields +10 points, capped at 30 points (3 seasons)
+  continuedAdoptionScore = Math.min(30, adoptedCount * 10);
 
   // --- Component 3: Seasonal Audit Verification Score (0 or 20 pts) ---
   // Measures whether an authorized auditor completed field verification for the farm's season
