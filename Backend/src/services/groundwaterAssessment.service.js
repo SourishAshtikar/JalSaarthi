@@ -1,5 +1,12 @@
 const { query } = require('../db');
 
+function normalizeCategory(category) {
+  if (category === 'Hilly Area') {
+    return 'Safe';
+  }
+  return category;
+}
+
 /**
  * Get all assessments for a given year and scope (district or village)
  */
@@ -20,7 +27,10 @@ async function getAssessments(year, scope) {
       WHERE ga.assessment_year = $1 AND ga.district_id IS NULL
     `;
     const res = await query(sql, [year]);
-    return res.rows;
+    return res.rows.map(row => ({
+      ...row,
+      category: normalizeCategory(row.category)
+    }));
   } else {
     // Default to district scope
     const sql = `
@@ -32,7 +42,10 @@ async function getAssessments(year, scope) {
       WHERE ga.assessment_year = $1 AND ga.village_id IS NULL
     `;
     const res = await query(sql, [year]);
-    return res.rows;
+    return res.rows.map(row => ({
+      ...row,
+      category: normalizeCategory(row.category)
+    }));
   }
 }
 
@@ -53,7 +66,10 @@ async function getDetails(scope, id, year) {
       WHERE ga.assessment_year = $1 AND ga.village_id IS NULL
     `;
     const districtsRes = await query(districtsSql, [year]);
-    const districts = districtsRes.rows;
+    const districts = districtsRes.rows.map(d => ({
+      ...d,
+      category: normalizeCategory(d.category)
+    }));
 
     let totalExtractable = 0;
     let totalExtraction = 0;
@@ -118,6 +134,8 @@ async function getDetails(scope, id, year) {
       throw new Error(`Groundwater assessment data not found for district ID ${districtId} and year ${year}`);
     }
 
+    detail.category = normalizeCategory(detail.category);
+
     const stage = detail.extractable_resources_bcm > 0 ? (detail.extraction_all_uses_bcm / detail.extractable_resources_bcm) * 100 : 0;
 
     // Sub-regions are all villages in this district
@@ -134,7 +152,7 @@ async function getDetails(scope, id, year) {
       rainfall_mm: sr.rainfall_mm,
       extractable_resources_bcm: sr.extractable_resources_bcm,
       extraction_all_uses_bcm: sr.extraction_all_uses_bcm,
-      category: sr.category
+      category: normalizeCategory(sr.category)
     }));
 
     // Read actual dtw_m_bgl or fallback to category-based estimates
@@ -180,6 +198,8 @@ async function getDetails(scope, id, year) {
     if (!detail) {
       throw new Error(`Groundwater assessment data not found for village ID ${villageId} and year ${year}`);
     }
+
+    detail.category = normalizeCategory(detail.category);
 
     const stage = detail.extractable_resources_bcm > 0 ? (detail.extraction_all_uses_bcm / detail.extractable_resources_bcm) * 100 : 0;
 

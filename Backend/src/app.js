@@ -68,15 +68,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/geography', geographyRoutes);
 app.use('/api/agriculture', agricultureRoutes);
 app.use('/api/reference', referenceRoutes);
-app.use('/api', sustainabilityScoreRoutes);
 app.use('/api/groundwater', groundwaterHeatmapRoutes);
 app.use('/api/groundwater-assessments', groundwaterAssessmentRoutes);
 app.use('/api/farms', farmRoutes);
 app.use('/api/audits', auditRoutes);
 app.use('/api/schemes', schemeRoutes);
+app.use('/api/ml', mlRoutes);
+app.use('/api', sustainabilityScoreRoutes);
 app.use('/api', cropRecordRoutes);
 app.use('/api', recommendationRoutes);
-app.use('/api/ml', mlRoutes);
 
 module.exports = app;
 

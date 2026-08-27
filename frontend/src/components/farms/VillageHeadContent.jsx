@@ -122,6 +122,11 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
 
   return (
     <>
+      <div className="welcome-banner">
+        <h1>Welcome back, {user?.name || 'User'}!</h1>
+        <p>Here is the groundwater and farm summary for <strong>{user?.village_name || user?.district_name || 'your assigned area'}</strong>.</p>
+      </div>
+
       <section className="summary">
         <Metric icon={<Sprout />} label="Registered farms" value={farms.length} />
         <Metric icon={<Leaf />} label="Seasonal records" value={records.length} />

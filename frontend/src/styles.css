@@ -590,6 +590,23 @@ textarea:focus {
   box-sizing: border-box;
 }
 
+/* ==================== Welcome Banner ==================== */
+.welcome-banner {
+  margin-bottom: 24px;
+}
+
+.welcome-banner h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px 0;
+}
+
+.welcome-banner p {
+  color: var(--muted);
+  font-size: 0.98rem;
+  margin: 0;
+}
 
 /* ==================== Summary & Metric Cards ==================== */
 .summary {

@@ -122,7 +122,7 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
           )
         ) : user.role === 'AUDITOR' ? (
           activeTab === 'verification' ? (
-            <AuditorContent request={request} notify={notify} setError={setError} />
+            <AuditorContent request={request} notify={notify} setError={setError} user={user} />
           ) : (
             <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
               <AssessmentExplorer request={request} setError={setError} />

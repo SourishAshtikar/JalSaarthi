@@ -114,7 +114,7 @@ export function AuditForm({ audit, methods, onClose, onSubmit }) {
   )
 }
 
-export default function AuditorContent({ request, notify, setError }) {
+export default function AuditorContent({ request, notify, setError, user }) {
   const [audits, setAudits] = useState([])
   const [methods, setMethods] = useState([])
   const [editing, setEditing] = useState(null)
@@ -206,6 +206,11 @@ export default function AuditorContent({ request, notify, setError }) {
 
   return (
     <>
+      <div className="welcome-banner">
+        <h1>Welcome back, {user?.name || 'User'}!</h1>
+        <p>Here is the groundwater and farm summary for <strong>{user?.district_name || user?.village_name || 'your assigned area'}</strong>.</p>
+      </div>
+
       <section className="summary">
         <Metric icon={<Building2 />} label="Assigned Farms" value={new Set(audits.map(a => a.farm_id)).size} />
         <Metric icon={<Sprout />} label="Total Crop Plots" value={totalPlots} />

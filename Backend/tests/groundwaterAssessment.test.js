@@ -68,10 +68,12 @@ async function setupTestData() {
 async function runTests() {
   console.log('\n--- Running Groundwater Assessment GIS API Tests ---\n');
 
-  // 1. Unauthenticated request rejected
+  // 1. Unauthenticated request allowed
   console.log('1. Testing unauthenticated request to /api/groundwater-assessments...');
-  const unauthRes = await request('GET', '/api/groundwater-assessments');
-  assert(unauthRes.status === 401, 'Unauthenticated request rejected with 401 Unauthorized');
+  const unauthRes = await request('GET', '/api/groundwater-assessments?year=2023-2024&scope=district');
+  assert(unauthRes.status === 200, 'Unauthenticated request allowed and returns 200 OK');
+  assert(unauthRes.body.status === 'SUCCESS', 'Response status is SUCCESS');
+  assert(Array.isArray(unauthRes.body.data), 'Data is an array');
 
   // 2. Missing year param rejected
   console.log('2. Testing missing year parameter...');
