@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../db');
 const { PUBLIC_REGISTRATION_ROLES } = require('../utils/constants');
 
-const register = async ({ name, email, password, role }) => {
+const register = async ({ name, email, password, token }) => {
   // 1. Validation
   if (!name || typeof name !== 'string' || !name.trim()) {
     const error = new Error('Name is required');
@@ -31,23 +31,30 @@ const register = async ({ name, email, password, role }) => {
     throw error;
   }
 
-  if (!role || typeof role !== 'string') {
-    const error = new Error(`Role is required. Allowed public registration roles are: ${PUBLIC_REGISTRATION_ROLES.join(', ')}`);
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    const error = new Error('Registration token is required');
     error.statusCode = 400;
     throw error;
   }
 
-  if (role === 'ADMIN') {
-    const error = new Error('Registration as ADMIN is not permitted via public registration');
-    error.statusCode = 403;
-    throw error;
-  }
-
-  if (!PUBLIC_REGISTRATION_ROLES.includes(role)) {
-    const error = new Error(`Invalid role. Allowed public registration roles are: ${PUBLIC_REGISTRATION_ROLES.join(', ')}`);
+  // Validate token
+  const tokenRes = await query('SELECT * FROM registration_tokens WHERE token = $1', [token.trim()]);
+  if (tokenRes.rows.length === 0) {
+    const error = new Error('Invalid registration token');
     error.statusCode = 400;
     throw error;
   }
+
+  const tokenRecord = tokenRes.rows[0];
+  if (tokenRecord.is_used) {
+    const error = new Error('Registration token has already been used');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const resolvedRole = tokenRecord.role;
+  const districtId = tokenRecord.district_id;
+  const villageId = tokenRecord.village_id;
 
   // 2. Check duplicate email
   const existing = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
@@ -61,13 +68,21 @@ const register = async ({ name, email, password, role }) => {
   const saltRounds = 10;
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
-  // 4. Insert user (explicitly inserting only name, email, password_hash, role; geographic self-assignment ignored/disallowed)
+  // 4. Insert user
   const result = await query(
-    'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, district_id, village_id, created_at',
-    [name.trim(), normalizedEmail, passwordHash, role]
+    'INSERT INTO users (name, email, password_hash, role, district_id, village_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, district_id, village_id, created_at',
+    [name.trim(), normalizedEmail, passwordHash, resolvedRole, districtId || null, villageId || null]
   );
 
-  return result.rows[0];
+  const newUser = result.rows[0];
+
+  // Mark token as used
+  await query(
+    'UPDATE registration_tokens SET is_used = true, used_by = $1 WHERE token = $2',
+    [newUser.id, tokenRecord.token]
+  );
+
+  return newUser;
 };
 
 const login = async ({ email, password }) => {

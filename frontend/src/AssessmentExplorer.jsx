@@ -15,7 +15,7 @@ export default function AssessmentExplorer({ request, setError, hideHeader = fal
 
   useEffect(() => {
     if (!el.current || map.current) return undefined
-    const instance = L.map(el.current, { center: [29.15, 76.3], zoom: 8, scrollWheelZoom: false })
+    const instance = L.map(el.current, { center: [29.15, 76.3], zoom: 8, scrollWheelZoom: true })
     const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap contributors' })
     const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Tiles © Esri' })
     satellite.addTo(instance); baseLayers.current = L.control.layers({ Satellite: satellite, Streets: street }, null, { position: 'topright' }).addTo(instance); map.current = instance

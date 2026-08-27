@@ -8,6 +8,15 @@ export async function apiRequest(path, options = {}) {
   if (active) headers.Authorization = `Bearer ${active}`
   const response = await fetch(`${API}${path}`, { ...options, headers })
   const payload = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(payload.message || `Request failed (${response.status})`)
+  if (!response.ok) {
+    let msg = payload.message || `Request failed (${response.status})`
+    msg = msg.replaceAll('Village Head', 'Sarpanch')
+             .replaceAll('Village head', 'Sarpanch')
+             .replaceAll('village head', 'sarpanch')
+             .replaceAll('Village Heads', 'Sarpanches')
+             .replaceAll('Village heads', 'Sarpanches')
+             .replaceAll('village heads', 'sarpanches')
+    throw new Error(msg)
+  }
   return payload
 }

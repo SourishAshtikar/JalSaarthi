@@ -69,12 +69,24 @@ async function ensureDatabaseInitialized() {
           id SERIAL PRIMARY KEY,
           token VARCHAR(255) NOT NULL UNIQUE,
           role VARCHAR(50) NOT NULL CHECK (role IN ('VILLAGE_HEAD', 'AUDITOR', 'GOVERNMENT_EMPLOYEE', 'ADMIN')),
+          district_id INTEGER REFERENCES districts(district_id) ON DELETE SET NULL,
+          village_id INTEGER REFERENCES villages(village_id) ON DELETE SET NULL,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
           is_used BOOLEAN DEFAULT FALSE NOT NULL,
           used_by INTEGER REFERENCES users(id) ON DELETE SET NULL
         )
       `);
       console.log('✅ registration_tokens table created successfully.');
+    } else {
+      // Ensure columns exist on already created table
+      await query(`
+        ALTER TABLE registration_tokens 
+        ADD COLUMN IF NOT EXISTS district_id INTEGER REFERENCES districts(district_id) ON DELETE SET NULL
+      `);
+      await query(`
+        ALTER TABLE registration_tokens 
+        ADD COLUMN IF NOT EXISTS village_id INTEGER REFERENCES villages(village_id) ON DELETE SET NULL
+      `);
     }
   } catch (error) {
     console.warn('⚠️ Auto-migration check warning:', error.message);

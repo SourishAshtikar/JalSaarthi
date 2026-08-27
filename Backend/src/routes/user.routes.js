@@ -9,6 +9,8 @@ router.use(requireRole('ADMIN'));
 
 router.get('/', userController.listUsers);
 router.get('/stats', userController.getAdminStats);
+router.get('/tokens', userController.listRegistrationTokens);
+router.post('/tokens', userController.generateRegistrationToken);
 router.post('/', userController.createUser);
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);

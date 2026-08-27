@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Login from './components/layout/Login'
+import Register from './components/auth/Register'
 import Shell from './components/layout/Shell'
 import LandingPage from './components/landing/LandingPage'
 import { apiRequest, TOKEN_KEY, USER_KEY } from './services/api'
@@ -85,7 +86,21 @@ export default function App() {
   
   if (!user) {
     if (viewMode === 'login') {
-      return <Login onSuccess={handleLoginSuccess} onBackToLanding={() => setViewMode('landing')} />
+      return (
+        <Login
+          onSuccess={handleLoginSuccess}
+          onRegisterClick={() => setViewMode('register')}
+          onBackToLanding={() => setViewMode('landing')}
+        />
+      )
+    }
+    if (viewMode === 'register') {
+      return (
+        <Register
+          onRegisterSuccess={handleLoginSuccess}
+          onBackToLogin={() => setViewMode('login')}
+        />
+      )
     }
     return (
       <LandingPage

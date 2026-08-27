@@ -7,6 +7,7 @@ const router = express.Router();
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/validate-token', authController.validateToken);
 
 // Protected routes (requires valid JWT)
 router.get('/me', authenticateToken, authController.getMe);

@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { query } = require('../db');
 
 /**
@@ -204,10 +205,58 @@ async function getAdminStats() {
   };
 }
 
+/**
+ * Generate a unique 16-character registration token for a specific role and jurisdiction
+ */
+async function generateRegistrationToken(role, districtId = null, villageId = null) {
+  const allowedRoles = ['VILLAGE_HEAD', 'AUDITOR', 'GOVERNMENT_EMPLOYEE', 'ADMIN'];
+  if (!role || !allowedRoles.includes(role)) {
+    const error = new Error(`Invalid role. Allowed roles are: ${allowedRoles.join(', ')}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const token = crypto.randomBytes(8).toString('hex').toUpperCase();
+
+  const sql = `
+    INSERT INTO registration_tokens (token, role, district_id, village_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING token, role, district_id, village_id, created_at, is_used
+  `;
+  const res = await query(sql, [token, role, districtId || null, villageId || null]);
+  return res.rows[0];
+}
+
+/**
+ * List all generated registration tokens with status, used by username, and jurisdiction details
+ */
+async function listRegistrationTokens() {
+  const sql = `
+    SELECT 
+      rt.token, 
+      rt.role, 
+      rt.created_at, 
+      rt.is_used, 
+      rt.used_by, 
+      u.name AS used_by_username,
+      d.name AS district_name,
+      v.name AS village_name
+    FROM registration_tokens rt
+    LEFT JOIN users u ON rt.used_by = u.id
+    LEFT JOIN districts d ON rt.district_id = d.district_id
+    LEFT JOIN villages v ON rt.village_id = v.village_id
+    ORDER BY rt.created_at DESC
+  `;
+  const res = await query(sql);
+  return res.rows;
+}
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   deleteUser,
-  getAdminStats
+  getAdminStats,
+  generateRegistrationToken,
+  listRegistrationTokens
 };

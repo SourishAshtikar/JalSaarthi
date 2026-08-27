@@ -22,16 +22,14 @@ export default function SitemapModal({ isOpen, onClose, onNavClick, onNavigateTo
     { name: 'Groundwater Maps', tabId: 'maps', desc: 'Full GIS layer explorer' },
   ]
 
-  const govtEmployeePages = [
-    { name: 'Govt Schemes Catalog', tabId: 'schemes', desc: 'Browse state & central water conservation subsidies' },
-    { name: 'Groundwater Maps', tabId: 'maps', desc: 'Full GIS layer explorer' },
-  ]
+
 
   const adminPages = [
     { name: 'Scheme Catalogue', tabId: 'schemes', desc: 'Create & manage government scheme eligibility rules' },
     { name: 'Sustainability Scores', tabId: 'scores', desc: 'Village & district sustainability ranking leaderboard' },
-    { name: 'ML Microservice', tabId: 'ml', desc: 'Machine learning prediction model test portal' },
+    { name: 'Predict Groundwater', tabId: 'ml', desc: 'Machine learning prediction model test portal' },
     { name: 'Groundwater Maps', tabId: 'maps', desc: 'Full GIS layer explorer' },
+    { name: 'Compare Maps', tabId: 'compare-maps', desc: 'Side-by-side GIS map trend comparison tool' },
   ]
 
   function handleWorkspacePageClick(tabId) {
@@ -76,9 +74,9 @@ export default function SitemapModal({ isOpen, onClose, onNavClick, onNavigateTo
             </div>
           </section>
 
-          {/* Village Head Workspace */}
+          {/* Sarpanch Workspace */}
           <section className="sitemap-block">
-            <h3><Sprout size={16} /> 🌾 1. Village Head Workspace</h3>
+            <h3><Sprout size={16} /> 🌾 1. Sarpanch Workspace</h3>
             <div className="sitemap-grid">
               {villageHeadPages.map(page => (
                 <button
@@ -112,27 +110,9 @@ export default function SitemapModal({ isOpen, onClose, onNavClick, onNavigateTo
             </div>
           </section>
 
-          {/* Government Employee Workspace */}
-          <section className="sitemap-block">
-            <h3><UserCheck size={16} /> 🏛️ 3. Government Employee Workspace</h3>
-            <div className="sitemap-grid">
-              {govtEmployeePages.map(page => (
-                <button
-                  key={page.name}
-                  type="button"
-                  className="sitemap-item-btn"
-                  onClick={() => handleWorkspacePageClick(page.tabId)}
-                >
-                  <strong>{page.name}</strong>
-                  <small>{page.desc}</small>
-                </button>
-              ))}
-            </div>
-          </section>
-
           {/* Admin Workspace */}
           <section className="sitemap-block">
-            <h3><Building2 size={16} /> 👑 4. Government Admin Workspace</h3>
+            <h3><Building2 size={16} /> 👑 3. Government Admin Workspace</h3>
             <div className="sitemap-grid">
               {adminPages.map(page => (
                 <button
@@ -150,7 +130,7 @@ export default function SitemapModal({ isOpen, onClose, onNavClick, onNavigateTo
         </div>
 
         <footer className="sitemap-modal-footer">
-          <span>JalSaarthi Groundwater Platform (4 System Roles Included)</span>
+          <span>JalSaarthi Groundwater Platform (3 System Roles Included)</span>
           <button type="button" className="button secondary" onClick={onClose}>
             Close Sitemap
           </button>

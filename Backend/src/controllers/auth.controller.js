@@ -2,8 +2,8 @@ const authService = require('../services/auth.service');
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body || {};
-    const user = await authService.register({ name, email, password, role });
+    const { name, email, password, token } = req.body || {};
+    const user = await authService.register({ name, email, password, token });
 
     return res.status(201).json({
       status: 'success',
@@ -87,9 +87,56 @@ const adminTest = async (req, res) => {
   });
 };
 
+const { query } = require('../db');
+
+const validateToken = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Token is required'
+      });
+    }
+
+    const tokenRes = await query('SELECT * FROM registration_tokens WHERE token = $1', [token.trim()]);
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid registration token'
+      });
+    }
+
+    const tokenRecord = tokenRes.rows[0];
+    if (tokenRecord.is_used) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Registration token has already been used'
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        token: tokenRecord.token,
+        role: tokenRecord.role,
+        district_id: tokenRecord.district_id,
+        village_id: tokenRecord.village_id
+      }
+    });
+  } catch (error) {
+    console.error('Validate token error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'An unexpected error occurred during token validation'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
-  adminTest
+  adminTest,
+  validateToken
 };

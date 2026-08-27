@@ -58,13 +58,9 @@ export default function AdminDashboardContent({ request, setError }) {
               <dt className="muted" style={{ fontWeight: 500 }}>District Auditors</dt>
               <dd style={{ fontWeight: 'bold', color: 'var(--ink)' }}>{roles.AUDITOR ?? 0}</dd>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <dt className="muted" style={{ fontWeight: 500 }}>Sarpanches</dt>
               <dd style={{ fontWeight: 'bold', color: 'var(--ink)' }}>{roles.VILLAGE_HEAD ?? 0}</dd>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <dt className="muted" style={{ fontWeight: 500 }}>Government Employees</dt>
-              <dd style={{ fontWeight: 'bold', color: 'var(--ink)' }}>{roles.GOVERNMENT_EMPLOYEE ?? 0}</dd>
             </div>
           </dl>
         </section>

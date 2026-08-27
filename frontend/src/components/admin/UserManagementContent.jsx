@@ -83,8 +83,8 @@ export default function UserManagementContent({ request, notify, setError }) {
       name,
       email,
       role,
-      district_id: (role === 'AUDITOR' || role === 'GOVERNMENT_EMPLOYEE' || role === 'ADMIN') && selectedDistrictId ? Number(selectedDistrictId) : null,
-      village_id: (role === 'VILLAGE_HEAD' || role === 'GOVERNMENT_EMPLOYEE') && selectedVillageId ? Number(selectedVillageId) : null
+      district_id: (role === 'AUDITOR' || role === 'ADMIN') && selectedDistrictId ? Number(selectedDistrictId) : null,
+      village_id: role === 'VILLAGE_HEAD' && selectedVillageId ? Number(selectedVillageId) : null
     }
 
     if (role === 'AUDITOR' && !payload.district_id) {
@@ -158,9 +158,8 @@ export default function UserManagementContent({ request, notify, setError }) {
       acc.total++
       if (u.role === 'VILLAGE_HEAD') acc.villageHeads++
       if (u.role === 'AUDITOR') acc.auditors++
-      if (u.role === 'GOVERNMENT_EMPLOYEE') acc.govEmployees++
       return acc
-    }, { total: 0, villageHeads: 0, auditors: 0, govEmployees: 0 })
+    }, { total: 0, villageHeads: 0, auditors: 0 })
   }, [users])
 
   const headers = ['User Details', 'Role', 'Assigned District', 'Assigned Village', 'Created At', 'Actions']
@@ -210,7 +209,6 @@ export default function UserManagementContent({ request, notify, setError }) {
         <Metric icon={<Users />} label="Total Users" value={counts.total} />
         <Metric icon={<Shield />} label="Auditors" value={counts.auditors} />
         <Metric icon={<MapPin />} label="Sarpanches" value={counts.villageHeads} />
-        <Metric icon={<Calendar />} label="Gov Employees" value={counts.govEmployees} />
       </section>
 
       <section className="toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', marginBottom: '16px' }}>
@@ -286,13 +284,12 @@ export default function UserManagementContent({ request, notify, setError }) {
               }}>
                 <option value="VILLAGE_HEAD">Sarpanch</option>
                 <option value="AUDITOR">District Auditor</option>
-                <option value="GOVERNMENT_EMPLOYEE">Government Employee</option>
                 <option value="ADMIN">Administrator</option>
               </select>
             </label>
 
-            {/* District Assignment Dropdown (shown for AUDITOR, GOVERNMENT_EMPLOYEE, ADMIN) */}
-            {(role === 'AUDITOR' || role === 'GOVERNMENT_EMPLOYEE' || role === 'ADMIN') && (
+            {/* District Assignment Dropdown (shown for AUDITOR, ADMIN) */}
+            {(role === 'AUDITOR' || role === 'ADMIN') && (
               <SearchableSelect
                 label="Geographic District Assignment"
                 placeholder="Select district..."
@@ -305,8 +302,8 @@ export default function UserManagementContent({ request, notify, setError }) {
               />
             )}
 
-            {/* Village Assignment Dropdown (shown for VILLAGE_HEAD, GOVERNMENT_EMPLOYEE) */}
-            {(role === 'VILLAGE_HEAD' || role === 'GOVERNMENT_EMPLOYEE') && (
+            {/* Village Assignment Dropdown (shown for VILLAGE_HEAD) */}
+            {role === 'VILLAGE_HEAD' && (
               <SearchableSelect
                 label="Geographic Village Assignment"
                 placeholder="Select village..."

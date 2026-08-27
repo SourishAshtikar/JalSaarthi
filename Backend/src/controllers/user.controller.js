@@ -74,10 +74,38 @@ async function getAdminStats(req, res, next) {
   }
 }
 
+async function generateRegistrationToken(req, res, next) {
+  try {
+    const { role, district_id, village_id } = req.body || {};
+    const token = await userService.generateRegistrationToken(role, district_id, village_id);
+    res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Registration token generated successfully',
+      data: { token }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listRegistrationTokens(req, res, next) {
+  try {
+    const data = await userService.listRegistrationTokens();
+    res.status(200).json({
+      status: 'SUCCESS',
+      data
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   deleteUser,
-  getAdminStats
+  getAdminStats,
+  generateRegistrationToken,
+  listRegistrationTokens
 };

@@ -130,7 +130,7 @@ export default function PredictionTest({ request, setError }) {
       <header>
         <div>
           <Bot />
-          <h2>ML Groundwater Depth Prediction</h2>
+          <h2>Predict Groundwater</h2>
         </div>
       </header>
       <p className="muted">

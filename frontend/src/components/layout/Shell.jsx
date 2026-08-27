@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react'
-import { Award, BadgeCheck, Bot, Building2, Droplets, LayoutDashboard, Leaf, LogOut, Map, MapPin, ShieldCheck, Users } from 'lucide-react'
+import { Award, BadgeCheck, Bot, Building2, Columns, Droplets, Key, LayoutDashboard, Leaf, LogOut, Map, MapPin, ShieldCheck, Users } from 'lucide-react'
 import { ApiError } from '../common/CommonUI'
 import VillageHeadContent from '../farms/VillageHeadContent'
 import GeneralRecommendationWorkspace from '../advisory/GeneralRecommendationWorkspace'
@@ -10,12 +10,14 @@ import AuditorContent from '../audits/AuditorContent'
 import PredictionTest from '../prediction/PredictionTest'
 import UserManagementContent from '../admin/UserManagementContent'
 import AdminDashboardContent from '../admin/AdminDashboardContent'
+import TokenGeneratorContent from '../admin/TokenGeneratorContent'
+import MapComparisonContent from '../admin/MapComparisonContent'
 
 // Code-split heavy Leaflet GIS map component on demand
 const AssessmentExplorer = lazy(() => import('../../AssessmentExplorer.jsx'))
 
 export default function Shell({ user, initialTab, onLogout, onGoToLanding, notify, request, error, setError, toast }) {
-  const roleLabel = user.role.replaceAll('_', ' ')
+  const roleLabel = user.role === 'VILLAGE_HEAD' ? 'SARPANCH' : user.role.replaceAll('_', ' ')
 
   // Define tab navigation per user role
   const tabs = useMemo(() => {
@@ -24,9 +26,11 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
         { id: 'dashboard', label: 'Admin Dashboard', icon: <LayoutDashboard /> },
         { id: 'schemes', label: 'Scheme Catalogue', icon: <Building2 /> },
         { id: 'scores', label: 'Sustainability Scores', icon: <Award /> },
-        { id: 'ml', label: 'ML Microservice', icon: <Bot /> },
+        { id: 'ml', label: 'Predict Groundwater', icon: <Bot /> },
         { id: 'users', label: 'User Assignments', icon: <Users /> },
-        { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
+        { id: 'tokens', label: 'Invite Tokens', icon: <Key /> },
+        { id: 'maps', label: 'Groundwater Maps', icon: <Map /> },
+        { id: 'compare-maps', label: 'Compare Maps', icon: <Columns /> }
       ]
     }
     if (user.role === 'AUDITOR') {
@@ -35,12 +39,7 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
         { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
       ]
     }
-    if (user.role === 'GOVERNMENT_EMPLOYEE') {
-      return [
-        { id: 'schemes', label: 'Govt Schemes', icon: <Building2 /> },
-        { id: 'maps', label: 'Groundwater Maps', icon: <Map /> }
-      ]
-    }
+
     // VILLAGE_HEAD & fallback
     return [
       { id: 'farms', label: 'Farm Register', icon: <Leaf /> },
@@ -117,12 +116,16 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
             <AdminDashboardContent request={request} setError={setError} />
           ) : activeTab === 'users' ? (
             <UserManagementContent request={request} notify={notify} setError={setError} />
+          ) : activeTab === 'tokens' ? (
+            <TokenGeneratorContent request={request} notify={notify} setError={setError} />
           ) : activeTab === 'schemes' ? (
             <AdminContent request={request} notify={notify} setError={setError} />
           ) : activeTab === 'scores' ? (
             <SustainabilityRankingTable request={request} setError={setError} />
           ) : activeTab === 'ml' ? (
             <PredictionTest request={request} setError={setError} />
+          ) : activeTab === 'compare-maps' ? (
+            <MapComparisonContent request={request} setError={setError} />
           ) : (
             <Suspense fallback={<section className="panel"><p className="muted">Loading GIS Groundwater Maps…</p></section>}>
               <AssessmentExplorer request={request} setError={setError} />
@@ -136,7 +139,7 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
               <AssessmentExplorer request={request} setError={setError} />
             </Suspense>
           )
-        ) : user.role === 'VILLAGE_HEAD' || user.role === 'GOVERNMENT_EMPLOYEE' ? (
+        ) : user.role === 'VILLAGE_HEAD' ? (
           activeTab === 'farms' ? (
             <VillageHeadContent request={request} notify={notify} setError={setError} user={user} />
           ) : activeTab === 'recommendations' ? (
@@ -152,7 +155,7 @@ export default function Shell({ user, initialTab, onLogout, onGoToLanding, notif
           <section className="empty">
             <Leaf />
             <h2>No workspace is assigned to this role</h2>
-            <p>The account is authenticated, but this demo currently supports Sarpanch, Auditor, Government Employee, and Admin workspaces.</p>
+            <p>The account is authenticated, but this demo currently supports Sarpanch, Auditor, and Admin workspaces.</p>
           </section>
         )}
       </div>

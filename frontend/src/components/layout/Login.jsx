@@ -4,7 +4,7 @@ import { ApiError } from '../common/CommonUI'
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 
-export default function Login({ onSuccess }) {
+export default function Login({ onSuccess, onRegisterClick }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -64,6 +64,17 @@ export default function Login({ onSuccess }) {
           <button className="button primary login-submit" disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+
+          <p className="muted" style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.88rem' }}>
+            Don't have an account?{' '}
+            <button
+              type="button"
+              onClick={onRegisterClick}
+              style={{ background: 'none', border: 'none', color: 'var(--green-dark)', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+            >
+              Register with Invite Token
+            </button>
+          </p>
         </form>
       </section>
     </main>
