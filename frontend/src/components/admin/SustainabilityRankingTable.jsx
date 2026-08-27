@@ -59,9 +59,13 @@ export default function SustainabilityRankingTable({ request, setError }) {
   const unappliedScores = useMemo(() => {
     try {
       const list = JSON.parse(localStorage.getItem('groundwater_removed_farms') || '[]')
-      return filtered.filter(s => !list.includes(s.farm_id))
+      return filtered.filter(s => 
+        !list.includes(s.farm_id) && 
+        s.priority === 'HIGH' && 
+        Number(s.sustainability_score) > 75
+      )
     } catch {
-      return filtered
+      return filtered.filter(s => s.priority === 'HIGH' && Number(s.sustainability_score) > 75)
     }
   }, [filtered, appliedTrigger])
 

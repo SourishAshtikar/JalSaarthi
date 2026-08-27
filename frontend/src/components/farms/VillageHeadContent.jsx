@@ -133,14 +133,29 @@ export default function VillageHeadContent({ request, notify, setError, user }) 
   const unappliedScores = useMemo(() => {
     try {
       const removed = JSON.parse(localStorage.getItem('groundwater_removed_farms') || '[]')
-      return scores.filter(s => !removed.includes(s.farm_id))
+      return scores.filter(s => 
+        !removed.includes(s.farm_id) && 
+        s.priority === 'HIGH' && 
+        Number(s.sustainability_score) > 75 &&
+        (s.scores?.audit > 0 || s.scores?.adoption > 0)
+      )
     } catch {
-      return scores
+      return scores.filter(s => 
+        s.priority === 'HIGH' && 
+        Number(s.sustainability_score) > 75 &&
+        (s.scores?.audit > 0 || s.scores?.adoption > 0)
+      )
     }
   }, [scores, claimsTrigger])
 
-  const topScore = unappliedScores[0]
-  const isTopPriority = selected && topScore && Number(selected.farm_id) === Number(topScore.farm_id)
+  const topScore = unappliedScores[0] || null
+  const isTopPriority = Boolean(
+    selected && 
+    topScore && 
+    Number(selected.farm_id) === Number(topScore.farm_id) && 
+    topScore.priority === 'HIGH' && 
+    Number(topScore.sustainability_score) > 75
+  )
 
   const activeClaim = useMemo(() => {
     if (!selected) return null
